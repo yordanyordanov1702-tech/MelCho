@@ -33,7 +33,7 @@ export default function ImportExcel() {
           </div>
         ))}
         <div style={{ fontSize: 11, color: '#4a5568', marginTop: '1rem' }}>
-          Line names must match exactly: <span style={{ color: '#e2e8f0' }}>Backend, T&amp;F, SPEA, FT, Small FT</span>
+          Line names must match exactly: <span style={{ color: '#e2e8f0' }}>Danube, Maritsa, Iskar, Rhine, Main</span>
         </div>
       </div>
 
