@@ -9,6 +9,7 @@ import oeeRoutes from './routes/oee.js';
 import headcountRoutes from './routes/headcount.js';
 import certRoutes from './routes/certifications.js';
 import importRoutes from './routes/import.js';
+import liveRoutes from './routes/live.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +28,7 @@ app.use('/api/oee', oeeRoutes);
 app.use('/api/headcount', headcountRoutes);
 app.use('/api/certifications', certRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/live', liveRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 

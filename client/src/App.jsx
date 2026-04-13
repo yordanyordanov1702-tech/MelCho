@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Layout from './components/Layout.jsx';
+import LiveDashboard from './components/LiveDashboard.jsx';
 import ProductionLoad from './components/ProductionLoad.jsx';
 import OEETracking from './components/OEETracking.jsx';
 import Headcount from './components/Headcount.jsx';
@@ -7,6 +8,7 @@ import Certifications from './components/Certifications.jsx';
 import ImportExcel from './components/ImportExcel.jsx';
 
 const TABS = [
+  { id: 'live', label: '⬤ LIVE' },
   { id: 'production', label: 'PRODUCTION LOAD' },
   { id: 'oee', label: 'OEE' },
   { id: 'headcount', label: 'HEADCOUNT' },
@@ -15,10 +17,11 @@ const TABS = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState('production');
+  const [tab, setTab] = useState('live');
 
   return (
     <Layout tab={tab} tabs={TABS} onTab={setTab}>
+      {tab === 'live' && <LiveDashboard />}
       {tab === 'production' && <ProductionLoad />}
       {tab === 'oee' && <OEETracking />}
       {tab === 'headcount' && <Headcount />}
