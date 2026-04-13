@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../hooks/useApi.js';
 
 const LINES = [
-  { id: 1, name: 'Backend', operators: 42 },
-  { id: 2, name: 'T&F', operators: 28 },
-  { id: 3, name: 'SPEA', operators: 35 },
-  { id: 4, name: 'FT', operators: 22 },
-  { id: 5, name: 'Small FT', operators: 18 },
+  { id: 1, name: 'Danube', operators: 42 },
+  { id: 2, name: 'Maritsa', operators: 28 },
+  { id: 3, name: 'Iskar', operators: 35 },
+  { id: 4, name: 'Rhine', operators: 22 },
+  { id: 5, name: 'Main', operators: 18 },
 ];
 
 function currentWeek() {

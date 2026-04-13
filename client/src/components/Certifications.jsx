@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../hooks/useApi.js';
 
 const LINES = [
-  { id: 1, name: 'Backend' }, { id: 2, name: 'T&F' }, { id: 3, name: 'SPEA' },
-  { id: 4, name: 'FT' }, { id: 5, name: 'Small FT' },
+  { id: 1, name: 'Danube' }, { id: 2, name: 'Maritsa' }, { id: 3, name: 'Iskar' },
+  { id: 4, name: 'Rhine' }, { id: 5, name: 'Main' },
 ];
 
 const STATUS_COLORS = {

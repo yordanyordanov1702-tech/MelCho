@@ -3,11 +3,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { api } from '../hooks/useApi.js';
 
 const LINES = [
-  { id: 1, name: 'Backend', machines: 55 },
-  { id: 2, name: 'T&F', machines: 10 },
-  { id: 3, name: 'SPEA', machines: 2 },
-  { id: 4, name: 'FT', machines: 160 },
-  { id: 5, name: 'Small FT', machines: 15 },
+  { id: 1, name: 'Danube', machines: 55 },
+  { id: 2, name: 'Maritsa', machines: 10 },
+  { id: 3, name: 'Iskar', machines: 2 },
+  { id: 4, name: 'Rhine', machines: 160 },
+  { id: 5, name: 'Main', machines: 15 },
 ];
 
 function currentWeek() {

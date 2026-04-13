@@ -3,11 +3,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { useApi, api } from '../hooks/useApi.js';
 
 const LINES = [
-  { id: 1, name: 'Backend', capacity: 1000 },
-  { id: 2, name: 'T&F', capacity: 500 },
-  { id: 3, name: 'SPEA', capacity: 200 },
-  { id: 4, name: 'FT', capacity: 3000 },
-  { id: 5, name: 'Small FT', capacity: 800 },
+  { id: 1, name: 'Danube', capacity: 1000 },
+  { id: 2, name: 'Maritsa', capacity: 500 },
+  { id: 3, name: 'Iskar', capacity: 200 },
+  { id: 4, name: 'Rhine', capacity: 3000 },
+  { id: 5, name: 'Main', capacity: 800 },
 ];
 
 function getStatus(pct) {
