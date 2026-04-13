@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#0f1117"/>
+  <rect x="16" y="16" width="160" height="160" rx="24" fill="#12161f" stroke="#1e2533" stroke-width="2"/>
+  <text x="96" y="72" text-anchor="middle" font-family="monospace" font-size="36" font-weight="500" fill="#3b82f6">Mel</text>
+  <text x="96" y="112" text-anchor="middle" font-family="monospace" font-size="36" font-weight="500" fill="#22c55e">Cho</text>
+  <circle cx="96" cy="148" r="8" fill="#22c55e" opacity="0.8"/>
+</svg>
