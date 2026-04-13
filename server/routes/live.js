@@ -14,12 +14,16 @@ function fluctuateF(base, variance = 0.03) {
   return Math.max(0, +(base * (1 + delta)).toFixed(1));
 }
 
-// Shift-aware production rate multiplier (0-24h)
-function shiftMultiplier() {
+// Current shift based on time
+function currentShift() {
   const h = new Date().getHours();
-  if (h >= 6 && h < 14) return 1.0;   // day shift
-  if (h >= 14 && h < 22) return 0.95; // afternoon shift
-  return 0.7;                          // night shift
+  if (h >= 6 && h < 14) return { shift: 'A', mult: 1.0 };
+  if (h >= 14 && h < 22) return { shift: 'B', mult: 0.95 };
+  return { shift: 'C', mult: 0.85 };
+}
+
+function shiftMultiplier() {
+  return currentShift().mult;
 }
 
 function currentWeek() {
@@ -32,11 +36,11 @@ function currentWeek() {
 // GET /api/live — real-time simulated metrics for all lines
 router.get('/', (req, res) => {
   const week = currentWeek();
+  const { shift, mult } = currentShift();
   const lines = db.prepare('SELECT * FROM lines').all();
-  const prodRows = db.prepare('SELECT * FROM production_load WHERE week = ?').all(week);
-  const oeeRows = db.prepare('SELECT * FROM oee WHERE week = ?').all(week);
-  const headRows = db.prepare('SELECT * FROM headcount WHERE week = ?').all(week);
-  const mult = shiftMultiplier();
+  const prodRows = db.prepare('SELECT * FROM production_load WHERE week = ? AND shift = ?').all(week, shift);
+  const oeeRows = db.prepare('SELECT * FROM oee WHERE week = ? AND shift = ?').all(week, shift);
+  const headRows = db.prepare('SELECT * FROM headcount WHERE week = ? AND shift = ?').all(week, shift);
 
   const metrics = lines.map(line => {
     const prod = prodRows.find(r => r.line_id === line.id);
@@ -68,7 +72,7 @@ router.get('/', (req, res) => {
     };
   });
 
-  res.json({ ts: new Date().toISOString(), week, metrics });
+  res.json({ ts: new Date().toISOString(), week, shift, metrics });
 });
 
 export default router;

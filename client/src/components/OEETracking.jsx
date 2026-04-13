@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../hooks/useApi.js';
 
 const LINES = [
@@ -9,6 +9,9 @@ const LINES = [
   { id: 4, name: 'Rhine', machines: 160 },
   { id: 5, name: 'Main', machines: 15 },
 ];
+
+const SHIFTS = ['A', 'B', 'C', 'D'];
+const SHIFT_HOURS = { A: '06-14', B: '14-22', C: '22-06', D: 'MAINT' };
 
 function currentWeek() {
   const d = new Date(); const jan1 = new Date(d.getFullYear(), 0, 1);
@@ -47,24 +50,25 @@ function MachineGrid({ total, active }) {
   );
 }
 
-function OEECard({ line, week }) {
+function OEECard({ line, week, shift }) {
   const [oee, setOee] = useState('');
   const [activeMachines, setActiveMachines] = useState(line.machines);
   const [trend, setTrend] = useState([]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/oee?week=${week}`).then(r => r.json()).then(rows => {
+    fetch(`/api/oee?week=${week}&shift=${shift}`).then(r => r.json()).then(rows => {
       const row = rows.find(r => r.line_id === line.id);
       if (row) { setOee(row.oee_percent); setActiveMachines(row.active_machines); }
+      else { setOee(''); setActiveMachines(line.machines); }
     });
-    fetch(`/api/oee/trend/${line.id}`).then(r => r.json()).then(setTrend);
-  }, [week, line.id]);
+    fetch(`/api/oee/trend/${line.id}?shift=${shift}`).then(r => r.json()).then(setTrend);
+  }, [week, shift, line.id]);
 
   const color = oeeColor(+oee || 0);
 
   const save = async () => {
-    await api(`/api/oee/${line.id}`, 'PUT', { week, oee_percent: +oee, active_machines: +activeMachines });
+    await api(`/api/oee/${line.id}`, 'PUT', { week, shift, oee_percent: +oee, active_machines: +activeMachines });
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   };
 
@@ -100,14 +104,22 @@ function OEECard({ line, week }) {
 
 export default function OEETracking() {
   const [week, setWeek] = useState(currentWeek());
+  const [shift, setShift] = useState('A');
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: 13, letterSpacing: '0.12em', color: '#4a5568' }}>OEE TRACKING</h2>
         <input type="week" value={week} onChange={e => setWeek(e.target.value)} style={{ background: '#12161f', border: '1px solid #1e2533', color: '#e2e8f0', padding: '0.35rem 0.75rem', fontSize: 13 }} />
+        <div style={{ display: 'flex', gap: '0.25rem' }}>
+          {SHIFTS.map(s => (
+            <button key={s} onClick={() => setShift(s)} style={{ background: shift === s ? '#3b82f6' : '#1e2533', color: shift === s ? '#0f1117' : '#4a5568', border: 'none', padding: '0.3rem 0.75rem', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>{s}</button>
+          ))}
+        </div>
+        <span style={{ fontSize: 10, color: '#4a5568' }}>SHIFT {shift} · {SHIFT_HOURS[shift]}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
-        {LINES.map(line => <OEECard key={line.id} line={line} week={week} />)}
+        {LINES.map(line => <OEECard key={`${line.id}-${shift}`} line={line} week={week} shift={shift} />)}
       </div>
     </div>
   );

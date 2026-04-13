@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../hooks/useApi.js';
 
 const LINES = [
-  { id: 1, name: 'Danube', operators: 42 },
-  { id: 2, name: 'Maritsa', operators: 28 },
-  { id: 3, name: 'Iskar', operators: 35 },
-  { id: 4, name: 'Rhine', operators: 22 },
-  { id: 5, name: 'Main', operators: 18 },
+  { id: 1, name: 'Danube', operators: 14 },
+  { id: 2, name: 'Maritsa', operators: 9 },
+  { id: 3, name: 'Iskar', operators: 12 },
+  { id: 4, name: 'Rhine', operators: 7 },
+  { id: 5, name: 'Main', operators: 6 },
 ];
+
+const SHIFTS = ['A', 'B', 'C', 'D'];
+const SHIFT_HOURS = { A: '06-14', B: '14-22', C: '22-06', D: 'MAINT' };
 
 function currentWeek() {
   const d = new Date(); const jan1 = new Date(d.getFullYear(), 0, 1);
@@ -22,23 +25,24 @@ function absenceColor(pct) {
   return '#ef4444';
 }
 
-function HeadcountCard({ line, week }) {
+function HeadcountCard({ line, week, shift }) {
   const [total, setTotal] = useState(line.operators);
   const [absent, setAbsent] = useState(0);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/headcount?week=${week}`).then(r => r.json()).then(rows => {
+    fetch(`/api/headcount?week=${week}&shift=${shift}`).then(r => r.json()).then(rows => {
       const row = rows.find(r => r.line_id === line.id);
       if (row) { setTotal(row.total); setAbsent(row.absent); }
+      else { setTotal(line.operators); setAbsent(0); }
     });
-  }, [week, line.id]);
+  }, [week, shift, line.id]);
 
   const pct = total > 0 ? Math.round((absent / total) * 100) : 0;
   const color = absenceColor(pct);
 
   const save = async () => {
-    await api(`/api/headcount/${line.id}`, 'PUT', { week, total: +total, absent: +absent });
+    await api(`/api/headcount/${line.id}`, 'PUT', { week, shift, total: +total, absent: +absent });
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   };
 
@@ -72,14 +76,22 @@ function HeadcountCard({ line, week }) {
 
 export default function Headcount() {
   const [week, setWeek] = useState(currentWeek());
+  const [shift, setShift] = useState('A');
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: 13, letterSpacing: '0.12em', color: '#4a5568' }}>HEADCOUNT & ABSENCE</h2>
         <input type="week" value={week} onChange={e => setWeek(e.target.value)} style={{ background: '#12161f', border: '1px solid #1e2533', color: '#e2e8f0', padding: '0.35rem 0.75rem', fontSize: 13 }} />
+        <div style={{ display: 'flex', gap: '0.25rem' }}>
+          {SHIFTS.map(s => (
+            <button key={s} onClick={() => setShift(s)} style={{ background: shift === s ? '#3b82f6' : '#1e2533', color: shift === s ? '#0f1117' : '#4a5568', border: 'none', padding: '0.3rem 0.75rem', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>{s}</button>
+          ))}
+        </div>
+        <span style={{ fontSize: 10, color: '#4a5568' }}>SHIFT {shift} · {SHIFT_HOURS[shift]}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-        {LINES.map(line => <HeadcountCard key={line.id} line={line} week={week} />)}
+        {LINES.map(line => <HeadcountCard key={`${line.id}-${shift}`} line={line} week={week} shift={shift} />)}
       </div>
     </div>
   );

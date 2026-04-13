@@ -86,7 +86,7 @@ export default function LiveDashboard() {
           <span style={{ fontSize: 10, color: '#22c55e', letterSpacing: '0.1em' }}>LIVE</span>
         </div>
         <span style={{ fontSize: 10, color: '#4a5568' }}>REFRESH IN {countdown}s</span>
-        <span style={{ fontSize: 10, color: '#4a5568', marginLeft: 'auto' }}>SHIFT: {shift} &nbsp;|&nbsp; {new Date(data.ts).toLocaleTimeString('en-GB')}</span>
+        <span style={{ fontSize: 10, color: '#4a5568', marginLeft: 'auto' }}>SHIFT: {data.shift} &nbsp;|&nbsp; {new Date(data.ts).toLocaleTimeString('en-GB')}</span>
       </div>
 
       {/* KPI strip */}
