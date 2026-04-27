@@ -19,7 +19,9 @@ const TABS = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState('live');
+  const params = new URLSearchParams(window.location.search);
+  const initTab = params.get('strava') || params.get('strava_error') ? 'strava' : 'live';
+  const [tab, setTab] = useState(initTab);
 
   return (
     <Layout tab={tab} tabs={TABS} onTab={setTab}>
