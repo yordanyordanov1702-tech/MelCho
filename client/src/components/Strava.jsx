@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || '/api';
+const _raw = import.meta.env.VITE_API_URL;
+const BASE = (_raw && _raw !== '/' && _raw !== '') ? _raw.replace(/\/$/, '') : '/api';
+// For OAuth redirect we always need the absolute backend URL
+const AUTH_BASE = 'https://melcho.onrender.com/api';
 
 // ── date / week helpers ────────────────────────────────────────────────────
 
@@ -269,7 +272,7 @@ export default function Strava() {
     setFetching(false);
   }, []);
 
-  const connect = () => { window.location.href = `${BASE}/strava/auth`; };
+  const connect = () => { window.location.href = `${AUTH_BASE}/strava/auth`; };
   const disconnect = () => {
     fetch(`${BASE}/strava/disconnect`, { method: 'DELETE' }).then(() => {
       setStatus({ connected: false, athlete: null });
