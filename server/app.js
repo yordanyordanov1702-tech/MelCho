@@ -10,6 +10,7 @@ import headcountRoutes from './routes/headcount.js';
 import certRoutes from './routes/certifications.js';
 import importRoutes from './routes/import.js';
 import liveRoutes from './routes/live.js';
+import stravaRoutes from './routes/strava.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +36,7 @@ app.use('/api/headcount', headcountRoutes);
 app.use('/api/certifications', certRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/live', liveRoutes);
+app.use('/api/strava', stravaRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 
