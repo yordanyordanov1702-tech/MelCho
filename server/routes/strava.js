@@ -1,19 +1,7 @@
 import { Router } from 'express';
-import { db } from '../app.js';
+import { db } from '../db.js';
 
 const router = Router();
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS strava_tokens (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    access_token TEXT NOT NULL,
-    refresh_token TEXT NOT NULL,
-    expires_at INTEGER NOT NULL,
-    athlete_id INTEGER,
-    athlete_name TEXT,
-    athlete_avatar TEXT
-  )
-`);
 
 const CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;

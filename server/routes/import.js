@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
-import { db } from '../app.js';
+import { db } from '../db.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });

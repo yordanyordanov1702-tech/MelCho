@@ -123,6 +123,17 @@ INSERT OR IGNORE INTO headcount (line_id, week, shift, total, absent) VALUES
   (1,'2026-W16','C',14,1),(2,'2026-W16','C',9,0),(3,'2026-W16','C',12,0),(4,'2026-W16','C',7,1),(5,'2026-W16','C',6,0),
   (1,'2026-W16','D',5,0),(2,'2026-W16','D',3,0),(3,'2026-W16','D',5,0),(4,'2026-W16','D',3,0),(5,'2026-W16','D',3,0);
 
+-- Strava OAuth tokens
+CREATE TABLE IF NOT EXISTS strava_tokens (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  athlete_id INTEGER,
+  athlete_name TEXT,
+  athlete_avatar TEXT
+);
+
 -- Seed: Operators with certifications
 INSERT OR IGNORE INTO operators (id, name, line_id, cert_expiry) VALUES
   (1,'Ivan Petrov',1,'2026-08-15'),(2,'Maria Georgieva',1,'2026-03-10'),
