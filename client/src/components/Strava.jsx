@@ -109,6 +109,22 @@ function typeConfig(type) {
   return { color: '#8b5cf6', bg: '#8b5cf618', icon: '⚡', label: (type || '').replace(/([A-Z])/g, ' $1').trim().toUpperCase().slice(0, 8) };
 }
 
+// ── Calorie helper ─────────────────────────────────────────────────────────
+// Strava doesn't always return calories in list view.
+// Fallback chain: calories → kilojoules × 0.24 → distance estimate
+
+function getCal(a) {
+  if (a.calories > 0) return { kcal: Math.round(a.calories), est: false };
+  if (a.kilojoules > 0) return { kcal: Math.round(a.kilojoules * 0.24), est: true };
+  // Rough estimate: ~65 kcal/km for running, ~40 kcal/km for cycling
+  if (a.distance > 0) {
+    const type = a.sport_type || a.type || '';
+    const rate = type.includes('Run') ? 65 : type.includes('Ride') ? 40 : 0;
+    if (rate > 0) return { kcal: Math.round((a.distance / 1000) * rate), est: true };
+  }
+  return { kcal: 0, est: false };
+}
+
 // ── Effort Score ───────────────────────────────────────────────────────────
 // Score = (km + elev/100) × HR multiplier
 // Result roughly: 0-10 easy, 10-30 moderate, 30-60 hard, 60+ max
@@ -390,14 +406,18 @@ function ActivityCard({ activity: a }) {
             <div style={{ fontSize: 9, color: '#475569' }}>bpm</div>
           </div>
         )}
-        {a.calories > 0 && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 12, color: '#ec4899', fontWeight: 600, lineHeight: 1 }}>
-              {Math.round(a.calories)}
+        {(() => {
+          const { kcal, est } = getCal(a);
+          if (!kcal) return null;
+          return (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, color: '#ec4899', fontWeight: 600, lineHeight: 1 }}>
+                {est ? '~' : ''}{kcal}
+              </div>
+              <div style={{ fontSize: 9, color: '#475569' }}>kcal</div>
             </div>
-            <div style={{ fontSize: 9, color: '#475569' }}>kcal</div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
@@ -611,9 +631,7 @@ export default function Strava() {
             fontSize: 12, fontWeight: 700, letterSpacing: '0.12em',
             fontFamily: 'inherit', borderRadius: 10, width: '100%',
             boxShadow: '0 4px 20px #FC4C0240',
-          }}>
-            CONNECT WITH STRAVA
-          </button>
+          }}>CONNECT WITH STRAVA</button>
         </div>
       </div>
     );
@@ -628,7 +646,8 @@ export default function Strava() {
   const totalDist = baseActs.reduce((s, a) => s + (a.distance || 0), 0);
   const totalTime = baseActs.reduce((s, a) => s + (a.moving_time || 0), 0);
   const totalElev = baseActs.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
-  const totalCal  = baseActs.reduce((s, a) => s + (a.calories || 0), 0);
+  const totalCal  = baseActs.reduce((s, a) => s + getCal(a).kcal, 0);
+  const totalCalEst = baseActs.some(a => getCal(a).est);
   const avgHR     = (() => {
     const hrs = baseActs.filter(a => a.average_heartrate);
     return hrs.length ? Math.round(hrs.reduce((s, a) => s + a.average_heartrate, 0) / hrs.length) : null;
@@ -750,7 +769,7 @@ export default function Strava() {
             <StatCard label="DISTANCE"   value={(totalDist / 1000).toFixed(1)} unit="km" color="#FC4C02" icon="📍" />
             <StatCard label="TIME"       value={fmtTime(totalTime)} unit="" color="#22c55e" icon="⏱" />
             <StatCard label="ELEVATION"  value={totalElev > 0 ? `+${Math.round(totalElev)}` : '—'} unit={totalElev > 0 ? 'm' : ''} color="#f59e0b" icon="⛰" />
-            <StatCard label="CALORIES"   value={totalCal > 0 ? Math.round(totalCal) : '—'} unit={totalCal > 0 ? 'kcal' : ''} color="#ec4899" icon="🔥" />
+            <StatCard label="CALORIES"   value={totalCal > 0 ? `${totalCalEst ? '~' : ''}${Math.round(totalCal)}` : '—'} unit={totalCal > 0 ? 'kcal' : ''} color="#ec4899" icon="🔥" />
             {avgHR && <StatCard label="AVG HR" value={avgHR} unit="bpm" color="#f87171" icon="❤️" />}
             {totalEffort > 0 && (
               <StatCard label="EFFORT" value={Math.round(totalEffort)} unit={ef.label} color={ef.color} icon="⚡" sub="км + пулс + денивелация" />
