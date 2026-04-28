@@ -1,4 +1,4 @@
-const CACHE = 'melcho-v1';
+const CACHE = 'danstra-v1';
 const SHELL = ['/', '/index.html'];
 
 self.addEventListener('install', e => {

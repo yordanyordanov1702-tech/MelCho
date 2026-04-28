@@ -1,6 +1,6 @@
 {
-  "name": "MelCho Production Planner",
-  "short_name": "MelCho",
+  "name": "Dan-Stra Production Planner",
+  "short_name": "Dan-Stra",
   "description": "Manufacturing Execution System for production floor monitoring",
   "start_url": "/",
   "display": "standalone",

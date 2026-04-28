@@ -26,7 +26,7 @@ export default function Layout({ children, tabs, tab, onTab }) {
   return (
     <div style={s.shell}>
       <header style={s.header}>
-        <div style={s.logo}><span style={s.dot} />MelCho</div>
+        <div style={s.logo}><span style={s.dot} />Dan-Stra</div>
         <nav style={s.nav}>
           {tabs.map(t => (
             <button key={t.id} style={s.tab(tab === t.id)} onClick={() => onTab(t.id)}>
