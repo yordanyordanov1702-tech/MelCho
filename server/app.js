@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { db } from './db.js';
 import productionRoutes from './routes/production.js';
 import oeeRoutes from './routes/oee.js';
@@ -12,7 +13,8 @@ import stravaRoutes from './routes/strava.js';
 export { db };
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
 
 app.use('/api/production', productionRoutes);
