@@ -536,19 +536,37 @@ export default function Strava() {
         </div>
 
         <div style={styles.heroRight}>
-          {/* View mode toggle */}
-          <div style={styles.viewToggle}>
-            {['WEEK', 'MONTH'].map(m => (
-              <button key={m} onClick={() => setViewMode(m)} style={{
-                ...styles.toggleBtn,
-                background: viewMode === m ? '#FC4C02' : 'transparent',
-                color: viewMode === m ? '#fff' : '#475569',
-                boxShadow: viewMode === m ? '0 2px 12px #FC4C0240' : 'none',
-              }}>{m}</button>
-            ))}
-          </div>
           <button onClick={disconnect} style={styles.disconnectBtn}>DISCONNECT</button>
         </div>
+      </div>
+
+      {/* ── View mode toggle ─────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        background: '#0f1420',
+        border: '1px solid #1a2235',
+        borderRadius: 14,
+        padding: 4,
+        marginBottom: '1.25rem',
+        gap: 4,
+      }}>
+        {['WEEK', 'MONTH'].map(m => (
+          <button key={m} onClick={() => setViewMode(m)} style={{
+            flex: 1,
+            border: 'none',
+            padding: '0.75rem',
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '0.12em',
+            fontFamily: 'inherit',
+            borderRadius: 10,
+            transition: 'all 0.2s',
+            background: viewMode === m ? '#FC4C02' : 'transparent',
+            color: viewMode === m ? '#fff' : '#334155',
+            boxShadow: viewMode === m ? '0 2px 16px #FC4C0250' : 'none',
+          }}>{m}</button>
+        ))}
       </div>
 
       {/* ── Navigator ────────────────────────────────────────────────────── */}
