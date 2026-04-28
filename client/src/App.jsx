@@ -6,7 +6,6 @@ import OEETracking from './components/OEETracking.jsx';
 import Headcount from './components/Headcount.jsx';
 import Certifications from './components/Certifications.jsx';
 import ImportExcel from './components/ImportExcel.jsx';
-import Strava from './components/Strava.jsx';
 
 const TABS = [
   { id: 'live', label: '⬤ LIVE' },
@@ -15,13 +14,10 @@ const TABS = [
   { id: 'headcount', label: 'HEADCOUNT' },
   { id: 'certifications', label: 'CERTIFICATIONS' },
   { id: 'import', label: 'IMPORT' },
-  { id: 'strava', label: 'STRAVA' },
 ];
 
 export default function App() {
-  const params = new URLSearchParams(window.location.search);
-  const initTab = params.get('strava') || params.get('strava_error') ? 'strava' : 'live';
-  const [tab, setTab] = useState(initTab);
+  const [tab, setTab] = useState('live');
 
   return (
     <Layout tab={tab} tabs={TABS} onTab={setTab}>
@@ -31,7 +27,6 @@ export default function App() {
       {tab === 'headcount' && <Headcount />}
       {tab === 'certifications' && <Certifications />}
       {tab === 'import' && <ImportExcel />}
-      {tab === 'strava' && <Strava />}
     </Layout>
   );
 }

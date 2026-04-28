@@ -39,18 +39,21 @@ async function getValidToken() {
 
 router.get('/auth', (req, res) => {
   if (!CLIENT_ID) return res.status(500).json({ error: 'STRAVA_CLIENT_ID not configured' });
+  const from = req.query.from || FRONTEND_URL;
   const url = new URL('https://www.strava.com/oauth/authorize');
   url.searchParams.set('client_id', CLIENT_ID);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('redirect_uri', REDIRECT_URI);
   url.searchParams.set('approval_prompt', 'force');
   url.searchParams.set('scope', 'read,activity:read_all');
+  url.searchParams.set('state', Buffer.from(from).toString('base64'));
   res.redirect(url.toString());
 });
 
 router.get('/callback', async (req, res) => {
-  const { code, error } = req.query;
-  if (error || !code) return res.redirect(`${FRONTEND_URL}?strava_error=access_denied`);
+  const { code, error, state } = req.query;
+  const returnUrl = state ? Buffer.from(state, 'base64').toString() : FRONTEND_URL;
+  if (error || !code) return res.redirect(`${returnUrl}?strava_error=access_denied`);
 
   try {
     const response = await fetch('https://www.strava.com/oauth/token', {
@@ -65,7 +68,7 @@ router.get('/callback', async (req, res) => {
     });
     const data = await response.json();
 
-    if (!data.access_token) return res.redirect(`${FRONTEND_URL}?strava_error=token_failed`);
+    if (!data.access_token) return res.redirect(`${returnUrl}?strava_error=token_failed`);
 
     const athleteName = [data.athlete?.firstname, data.athlete?.lastname].filter(Boolean).join(' ');
     db.prepare(`
@@ -80,9 +83,9 @@ router.get('/callback', async (req, res) => {
       data.athlete?.profile_medium ?? null
     );
 
-    res.redirect(`${FRONTEND_URL}?strava=connected`);
+    res.redirect(`${returnUrl}?strava=connected`);
   } catch {
-    res.redirect(`${FRONTEND_URL}?strava_error=server_error`);
+    res.redirect(`${returnUrl}?strava_error=server_error`);
   }
 });
 
