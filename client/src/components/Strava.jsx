@@ -115,12 +115,21 @@ function typeConfig(type) {
 
 function getCal(a) {
   if (a.calories > 0) return { kcal: Math.round(a.calories), est: false };
-  if (a.kilojoules > 0) return { kcal: Math.round(a.kilojoules * 0.24), est: true };
-  // Rough estimate: ~65 kcal/km for running, ~40 kcal/km for cycling
-  if (a.distance > 0) {
-    const type = a.sport_type || a.type || '';
-    const rate = type.includes('Run') ? 65 : type.includes('Ride') ? 40 : 0;
-    if (rate > 0) return { kcal: Math.round((a.distance / 1000) * rate), est: true };
+  // Calibrated from real data:
+  // Run 13km + 900m elev = 1200 kcal → 65 kcal/km + 0.4 kcal/m elev
+  // Ride 30km + 700m elev = 1400 kcal → 35 kcal/km + 0.5 kcal/m elev
+  const km   = (a.distance || 0) / 1000;
+  const elev = a.total_elevation_gain || 0;
+  const type = a.sport_type || a.type || '';
+  if (km > 0) {
+    if (type.includes('Run') || type === 'Walk' || type === 'Hike') {
+      return { kcal: Math.round(km * 65 + elev * 0.4), est: true };
+    }
+    if (type.includes('Ride')) {
+      // Use kilojoules if available (more accurate for cycling)
+      if (a.kilojoules > 0) return { kcal: Math.round(a.kilojoules * 0.24 + elev * 0.5), est: true };
+      return { kcal: Math.round(km * 35 + elev * 0.5), est: true };
+    }
   }
   return { kcal: 0, est: false };
 }
