@@ -109,6 +109,130 @@ function typeConfig(type) {
   return { color: '#8b5cf6', bg: '#8b5cf618', icon: '⚡', label: (type || '').replace(/([A-Z])/g, ' $1').trim().toUpperCase().slice(0, 8) };
 }
 
+// ── Effort Score ───────────────────────────────────────────────────────────
+// Score = (km + elev/100) × HR multiplier
+// Result roughly: 0-10 easy, 10-30 moderate, 30-60 hard, 60+ max
+
+function hrMultiplier(hr) {
+  if (!hr) return 1.0;
+  if (hr >= 175) return 2.0;
+  if (hr >= 165) return 1.7;
+  if (hr >= 155) return 1.4;
+  if (hr >= 145) return 1.2;
+  if (hr >= 135) return 1.0;
+  return 0.8;
+}
+
+function calcEffort(a) {
+  const km   = (a.distance || 0) / 1000;
+  const elev = (a.total_elevation_gain || 0) / 100;
+  const mul  = hrMultiplier(a.average_heartrate);
+  return Math.round((km + elev) * mul * 10) / 10;
+}
+
+function effortLabel(score) {
+  if (score >= 60) return { label: 'MAX',    color: '#ef4444' };
+  if (score >= 30) return { label: 'HARD',   color: '#f97316' };
+  if (score >= 10) return { label: 'MOD',    color: '#f59e0b' };
+  if (score >  0)  return { label: 'EASY',   color: '#22c55e' };
+  return               { label: '—',      color: '#334155' };
+}
+
+// ── Coach Panel ────────────────────────────────────────────────────────────
+
+function CoachPanel({ allActivities, weekActs }) {
+  const tips = [];
+  const now = new Date();
+
+  // Days since last activity
+  const sorted = [...allActivities].sort((a, b) =>
+    new Date(b.start_date_local) - new Date(a.start_date_local)
+  );
+  const lastAct = sorted[0];
+  const daysSince = lastAct
+    ? Math.floor((now - new Date(lastAct.start_date_local)) / 86400000)
+    : null;
+
+  if (daysSince !== null) {
+    if (daysSince === 0) tips.push({ icon: '🔥', color: '#FC4C02', text: 'Тренирал си днес — страхотно! Почини се добре.' });
+    else if (daysSince === 1) tips.push({ icon: '✅', color: '#22c55e', text: 'Вчера имаше тренировка. Как се чувстваш днес?' });
+    else if (daysSince <= 3) tips.push({ icon: '⏰', color: '#f59e0b', text: `${daysSince} дни без тренировка. Добре е да се върнеш скоро.` });
+    else tips.push({ icon: '😴', color: '#ef4444', text: `${daysSince} дни без активност! Дори кратко бягане ще помогне.` });
+  }
+
+  // This week vs last week distance
+  const thisWeekKey = weekKey(now.toISOString());
+  const lastWeekDate = new Date(now);
+  lastWeekDate.setDate(now.getDate() - 7);
+  const lastWeekKey = weekKey(lastWeekDate.toISOString());
+
+  const thisKm = allActivities
+    .filter(a => weekKey(a.start_date_local) === thisWeekKey)
+    .reduce((s, a) => s + (a.distance || 0), 0) / 1000;
+  const lastKm = allActivities
+    .filter(a => weekKey(a.start_date_local) === lastWeekKey)
+    .reduce((s, a) => s + (a.distance || 0), 0) / 1000;
+
+  if (lastKm > 0 && thisKm > 0) {
+    const diff = Math.round(((thisKm - lastKm) / lastKm) * 100);
+    if (diff > 20) tips.push({ icon: '📈', color: '#FC4C02', text: `Тази седмица +${diff}% спрямо миналата! Внимавай с прекалено бързо увеличаване.` });
+    else if (diff > 0) tips.push({ icon: '📈', color: '#22c55e', text: `+${diff}% повече км от миналата седмица. Добре дозирано!` });
+    else if (diff < -20) tips.push({ icon: '📉', color: '#f59e0b', text: `${diff}% по-малко км тази седмица. Планирал ли си почивка?` });
+  }
+
+  // HR zone tip
+  const actsWithHR = weekActs.filter(a => a.average_heartrate);
+  if (actsWithHR.length > 0) {
+    const avgHR = Math.round(actsWithHR.reduce((s, a) => s + a.average_heartrate, 0) / actsWithHR.length);
+    if (avgHR > 165) tips.push({ icon: '❤️', color: '#ef4444', text: `Среден пулс ${avgHR}bpm — много интензивно. Добави 1 лесна тренировка под 140bpm.` });
+    else if (avgHR > 150) tips.push({ icon: '❤️', color: '#f97316', text: `Среден пулс ${avgHR}bpm — умерено натоварване. Добре!` });
+    else tips.push({ icon: '❤️', color: '#22c55e', text: `Среден пулс ${avgHR}bpm — аеробна зона. Перфектно за издръжливост!` });
+  }
+
+  // Weekly effort total
+  const totalEffort = weekActs.reduce((s, a) => s + calcEffort(a), 0);
+  if (totalEffort > 80) tips.push({ icon: '💪', color: '#ef4444', text: `Effort ${Math.round(totalEffort)} тази седмица — много натоварена! Почини се.` });
+  else if (totalEffort > 40) tips.push({ icon: '💪', color: '#f59e0b', text: `Effort ${Math.round(totalEffort)} — добро натоварване. Продължавай!` });
+  else if (totalEffort > 0) tips.push({ icon: '💪', color: '#22c55e', text: `Effort ${Math.round(totalEffort)} — лека седмица. Можеш да добавиш още.` });
+
+  // No run this week but has runs historically
+  const hasRunsEver = allActivities.some(a => (a.sport_type || a.type)?.includes('Run'));
+  const hasRunThisWeek = weekActs.some(a => (a.sport_type || a.type)?.includes('Run'));
+  if (hasRunsEver && !hasRunThisWeek && daysSince !== 0) {
+    tips.push({ icon: '🏃', color: '#FC4C02', text: 'Тази седмица нямаш бягане. Дори 20 мин лесно бягане е достатъчно!' });
+  }
+
+  if (tips.length === 0) {
+    tips.push({ icon: '🎯', color: '#475569', text: 'Тренирай редовно и ще видиш съвети тук!' });
+  }
+
+  return (
+    <div style={{
+      background: '#0f1420',
+      border: '1px solid #1a2235',
+      borderRadius: 14,
+      padding: '1.25rem',
+      marginBottom: '1.25rem',
+    }}>
+      <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.12em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 14 }}>🤖</span> COACH
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {tips.slice(0, 3).map((tip, i) => (
+          <div key={i} style={{
+            display: 'flex', gap: 10, alignItems: 'flex-start',
+            background: '#080c14', borderRadius: 10, padding: '0.75rem 1rem',
+            borderLeft: `3px solid ${tip.color}40`,
+          }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{tip.icon}</span>
+            <span style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{tip.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Week Bar Chart ─────────────────────────────────────────────────────────
 
 function WeekBarChart({ activities, monday }) {
@@ -245,11 +369,22 @@ function ActivityCard({ activity: a }) {
         </div>
       </div>
 
-      {/* HR + calories */}
+      {/* HR + calories + effort */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+        {(() => {
+          const score = calcEffort(a);
+          const ef = effortLabel(score);
+          if (score === 0) return null;
+          return (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 16, color: ef.color, fontWeight: 800, lineHeight: 1 }}>{score}</div>
+              <div style={{ fontSize: 9, color: ef.color, opacity: 0.7, letterSpacing: '0.06em' }}>{ef.label}</div>
+            </div>
+          );
+        })()}
         {a.average_heartrate && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 16, color: '#f87171', fontWeight: 700, lineHeight: 1 }}>
+            <div style={{ fontSize: 13, color: '#f87171', fontWeight: 700, lineHeight: 1 }}>
               {Math.round(a.average_heartrate)}
             </div>
             <div style={{ fontSize: 9, color: '#475569' }}>bpm</div>
@@ -257,7 +392,7 @@ function ActivityCard({ activity: a }) {
         )}
         {a.calories > 0 && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 14, color: '#ec4899', fontWeight: 600, lineHeight: 1 }}>
+            <div style={{ fontSize: 12, color: '#ec4899', fontWeight: 600, lineHeight: 1 }}>
               {Math.round(a.calories)}
             </div>
             <div style={{ fontSize: 9, color: '#475569' }}>kcal</div>
@@ -467,20 +602,14 @@ export default function Strava() {
             ACTIVITY DASHBOARD
           </div>
           <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8, marginBottom: '2rem' }}>
-            Connect your Strava account to track runs,<br />rides, and all your workouts.
+            Свържи Strava акаунта си за да виждаш<br />бягания, карания и всички тренировки.
           </div>
           <button onClick={connect} style={{
             background: 'linear-gradient(135deg, #FC4C02, #ff7a45)',
-            color: '#fff',
-            border: 'none',
-            padding: '0.9rem 2rem',
-            cursor: 'pointer',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            fontFamily: 'inherit',
-            borderRadius: 10,
-            width: '100%',
+            color: '#fff', border: 'none',
+            padding: '0.9rem 2rem', cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.12em',
+            fontFamily: 'inherit', borderRadius: 10, width: '100%',
             boxShadow: '0 4px 20px #FC4C0240',
           }}>
             CONNECT WITH STRAVA
@@ -535,9 +664,7 @@ export default function Strava() {
           </div>
         </div>
 
-        <div style={styles.heroRight}>
-          <button onClick={disconnect} style={styles.disconnectBtn}>DISCONNECT</button>
-        </div>
+        <button onClick={disconnect} style={styles.disconnectBtn}>DISCONNECT</button>
       </div>
 
       {/* ── View mode toggle ─────────────────────────────────────────────── */}
@@ -614,14 +741,26 @@ export default function Strava() {
       )}
 
       {/* ── Stat Cards ───────────────────────────────────────────────────── */}
-      <div style={styles.statGrid}>
-        <StatCard label="ACTIVITIES" value={baseActs.length} unit="" color="#f1f5f9" icon="📊" />
-        <StatCard label="DISTANCE"   value={(totalDist / 1000).toFixed(1)} unit="km" color="#FC4C02" icon="📍" />
-        <StatCard label="TIME"       value={fmtTime(totalTime)} unit="" color="#22c55e" icon="⏱" />
-        <StatCard label="ELEVATION"  value={totalElev > 0 ? `+${Math.round(totalElev)}` : '—'} unit={totalElev > 0 ? 'm' : ''} color="#f59e0b" icon="⛰" />
-        <StatCard label="CALORIES"   value={totalCal > 0 ? Math.round(totalCal) : '—'} unit={totalCal > 0 ? 'kcal' : ''} color="#ec4899" icon="🔥" />
-        {avgHR && <StatCard label="AVG HEART RATE" value={avgHR} unit="bpm" color="#f87171" icon="❤️" />}
-      </div>
+      {(() => {
+        const totalEffort = baseActs.reduce((s, a) => s + calcEffort(a), 0);
+        const ef = effortLabel(totalEffort);
+        return (
+          <div style={styles.statGrid}>
+            <StatCard label="ACTIVITIES" value={baseActs.length} unit="" color="#f1f5f9" icon="📊" />
+            <StatCard label="DISTANCE"   value={(totalDist / 1000).toFixed(1)} unit="km" color="#FC4C02" icon="📍" />
+            <StatCard label="TIME"       value={fmtTime(totalTime)} unit="" color="#22c55e" icon="⏱" />
+            <StatCard label="ELEVATION"  value={totalElev > 0 ? `+${Math.round(totalElev)}` : '—'} unit={totalElev > 0 ? 'm' : ''} color="#f59e0b" icon="⛰" />
+            <StatCard label="CALORIES"   value={totalCal > 0 ? Math.round(totalCal) : '—'} unit={totalCal > 0 ? 'kcal' : ''} color="#ec4899" icon="🔥" />
+            {avgHR && <StatCard label="AVG HR" value={avgHR} unit="bpm" color="#f87171" icon="❤️" />}
+            {totalEffort > 0 && (
+              <StatCard label="EFFORT" value={Math.round(totalEffort)} unit={ef.label} color={ef.color} icon="⚡" sub="км + пулс + денивелация" />
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Coach Panel ──────────────────────────────────────────────────── */}
+      <CoachPanel allActivities={allActivities} weekActs={weekActs} />
 
       {/* ── MONTH: week rows ──────────────────────────────────────────────── */}
       {viewMode === 'MONTH' && (
