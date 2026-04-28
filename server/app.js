@@ -7,7 +7,7 @@ import headcountRoutes from './routes/headcount.js';
 import certRoutes from './routes/certifications.js';
 import importRoutes from './routes/import.js';
 import liveRoutes from './routes/live.js';
-import stravaRoutes from './routes/strava.js';
+import stravaRoutes, { restoreStravaFromEnv } from './routes/strava.js';
 
 export { db };
 
@@ -26,4 +26,7 @@ app.use('/api/strava', stravaRoutes);
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  restoreStravaFromEnv();
+});

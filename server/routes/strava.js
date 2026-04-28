@@ -37,6 +37,51 @@ async function getValidToken() {
   return row.access_token;
 }
 
+// On server start: restore connection from STRAVA_REFRESH_TOKEN env var if DB is empty
+export async function restoreStravaFromEnv() {
+  const existing = db.prepare('SELECT id FROM strava_tokens WHERE id = 1').get();
+  if (existing) return;
+
+  const refreshToken = process.env.STRAVA_REFRESH_TOKEN;
+  if (!refreshToken || !CLIENT_ID || !CLIENT_SECRET) return;
+
+  try {
+    const tokenRes = await fetch('https://www.strava.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return;
+
+    const athleteRes = await fetch('https://www.strava.com/api/v3/athlete', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const athlete = await athleteRes.json();
+    const athleteName = [athlete.firstname, athlete.lastname].filter(Boolean).join(' ');
+
+    db.prepare(`
+      INSERT OR REPLACE INTO strava_tokens (id, access_token, refresh_token, expires_at, athlete_id, athlete_name, athlete_avatar)
+      VALUES (1, ?, ?, ?, ?, ?, ?)
+    `).run(
+      tokenData.access_token,
+      tokenData.refresh_token,
+      tokenData.expires_at,
+      athlete.id ?? null,
+      athleteName || null,
+      athlete.profile_medium ?? null
+    );
+    console.log('Strava connection restored from env var');
+  } catch (e) {
+    console.error('Strava restore failed:', e.message);
+  }
+}
+
 router.get('/auth', (req, res) => {
   if (!CLIENT_ID) return res.status(500).json({ error: 'STRAVA_CLIENT_ID not configured' });
   const from = req.query.from || FRONTEND_URL;
@@ -83,6 +128,8 @@ router.get('/callback', async (req, res) => {
       data.athlete?.profile_medium ?? null
     );
 
+    // Log refresh token so it can be copied to STRAVA_REFRESH_TOKEN env var in Render
+    console.log(`STRAVA_REFRESH_TOKEN=${data.refresh_token}`);
     res.redirect(`${returnUrl}?strava=connected`);
   } catch {
     res.redirect(`${returnUrl}?strava_error=server_error`);
