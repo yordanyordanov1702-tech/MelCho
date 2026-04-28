@@ -1,5 +1,6 @@
 {
   "public": true,
+  "name": "dan-stra",
   "rewrites": [
     {
       "source": "/api/:path*",
