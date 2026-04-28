@@ -175,11 +175,4 @@ router.delete('/disconnect', (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Temporary: export refresh token so it can be saved to env var ─────────────
-router.get('/export-token', (req, res) => {
-  const row = db.prepare('SELECT refresh_token FROM strava_tokens WHERE id = 1').get();
-  if (!row) return res.status(404).json({ error: 'not_connected' });
-  res.json({ STRAVA_REFRESH_TOKEN: row.refresh_token });
-});
-
 export default router;
