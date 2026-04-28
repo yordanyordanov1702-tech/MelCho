@@ -622,16 +622,24 @@ export default function Strava() {
             ACTIVITY DASHBOARD
           </div>
           <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8, marginBottom: '2rem' }}>
-            Connect your Strava account to track runs,<br />rides, and all your workouts.
+            Not connected. To link Strava,<br />go to the Production Dashboard.
           </div>
-          <button onClick={connect} style={{
-            background: 'linear-gradient(135deg, #FC4C02, #ff7a45)',
-            color: '#fff', border: 'none',
-            padding: '0.9rem 2rem', cursor: 'pointer',
-            fontSize: 12, fontWeight: 700, letterSpacing: '0.12em',
-            fontFamily: 'inherit', borderRadius: 10, width: '100%',
-            boxShadow: '0 4px 20px #FC4C0240',
-          }}>CONNECT WITH STRAVA</button>
+          <a href="https://mel-cho.vercel.app" style={{
+            display: 'block',
+            background: '#1a2235',
+            color: '#94a3b8',
+            border: '1px solid #2d3748',
+            padding: '0.9rem 2rem',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            fontFamily: 'inherit',
+            borderRadius: 10,
+            textDecoration: 'none',
+            transition: 'opacity 0.15s',
+          }}>
+            → MEL-CHO DASHBOARD
+          </a>
         </div>
       </div>
     );
@@ -683,7 +691,6 @@ export default function Strava() {
           </div>
         </div>
 
-        <button onClick={disconnect} style={styles.disconnectBtn}>DISCONNECT</button>
       </div>
 
       {/* ── View mode toggle ─────────────────────────────────────────────── */}
@@ -946,16 +953,18 @@ const styles = {
     gap: '1rem',
   },
   navArrow: {
-    background: '#0a0e17',
-    border: '1px solid #1a2235',
-    color: '#475569',
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    background: '#FC4C02',
+    border: 'none',
+    color: '#fff',
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     cursor: 'pointer',
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: 700,
     lineHeight: 1,
     fontFamily: 'inherit',
+    boxShadow: '0 2px 10px #FC4C0240',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
