@@ -154,10 +154,10 @@ function CoachPanel({ allActivities, weekActs }) {
     : null;
 
   if (daysSince !== null) {
-    if (daysSince === 0) tips.push({ icon: '🔥', color: '#FC4C02', text: 'Тренирал си днес — страхотно! Почини се добре.' });
-    else if (daysSince === 1) tips.push({ icon: '✅', color: '#22c55e', text: 'Вчера имаше тренировка. Как се чувстваш днес?' });
-    else if (daysSince <= 3) tips.push({ icon: '⏰', color: '#f59e0b', text: `${daysSince} дни без тренировка. Добре е да се върнеш скоро.` });
-    else tips.push({ icon: '😴', color: '#ef4444', text: `${daysSince} дни без активност! Дори кратко бягане ще помогне.` });
+    if (daysSince === 0) tips.push({ icon: '🔥', color: '#FC4C02', text: 'You trained today — great work! Make sure to recover well.' });
+    else if (daysSince === 1) tips.push({ icon: '✅', color: '#22c55e', text: 'You worked out yesterday. How are you feeling today?' });
+    else if (daysSince <= 3) tips.push({ icon: '⏰', color: '#f59e0b', text: `${daysSince} days without training. Time to get back out there soon.` });
+    else tips.push({ icon: '😴', color: '#ef4444', text: `${daysSince} days without activity! Even a short easy run will help.` });
   }
 
   // This week vs last week distance
@@ -175,35 +175,35 @@ function CoachPanel({ allActivities, weekActs }) {
 
   if (lastKm > 0 && thisKm > 0) {
     const diff = Math.round(((thisKm - lastKm) / lastKm) * 100);
-    if (diff > 20) tips.push({ icon: '📈', color: '#FC4C02', text: `Тази седмица +${diff}% спрямо миналата! Внимавай с прекалено бързо увеличаване.` });
-    else if (diff > 0) tips.push({ icon: '📈', color: '#22c55e', text: `+${diff}% повече км от миналата седмица. Добре дозирано!` });
-    else if (diff < -20) tips.push({ icon: '📉', color: '#f59e0b', text: `${diff}% по-малко км тази седмица. Планирал ли си почивка?` });
+    if (diff > 20) tips.push({ icon: '📈', color: '#FC4C02', text: `+${diff}% more km than last week! Be careful not to increase volume too fast.` });
+    else if (diff > 0) tips.push({ icon: '📈', color: '#22c55e', text: `+${diff}% more km than last week. Well paced progression!` });
+    else if (diff < -20) tips.push({ icon: '📉', color: '#f59e0b', text: `${diff}% fewer km this week. Planned rest or just a lighter week?` });
   }
 
   // HR zone tip
   const actsWithHR = weekActs.filter(a => a.average_heartrate);
   if (actsWithHR.length > 0) {
     const avgHR = Math.round(actsWithHR.reduce((s, a) => s + a.average_heartrate, 0) / actsWithHR.length);
-    if (avgHR > 165) tips.push({ icon: '❤️', color: '#ef4444', text: `Среден пулс ${avgHR}bpm — много интензивно. Добави 1 лесна тренировка под 140bpm.` });
-    else if (avgHR > 150) tips.push({ icon: '❤️', color: '#f97316', text: `Среден пулс ${avgHR}bpm — умерено натоварване. Добре!` });
-    else tips.push({ icon: '❤️', color: '#22c55e', text: `Среден пулс ${avgHR}bpm — аеробна зона. Перфектно за издръжливост!` });
+    if (avgHR > 165) tips.push({ icon: '❤️', color: '#ef4444', text: `Avg HR ${avgHR}bpm — very intense week. Try adding an easy session below 140bpm.` });
+    else if (avgHR > 150) tips.push({ icon: '❤️', color: '#f97316', text: `Avg HR ${avgHR}bpm — moderate intensity. Good balance!` });
+    else tips.push({ icon: '❤️', color: '#22c55e', text: `Avg HR ${avgHR}bpm — aerobic zone. Perfect for building endurance!` });
   }
 
   // Weekly effort total
   const totalEffort = weekActs.reduce((s, a) => s + calcEffort(a), 0);
-  if (totalEffort > 80) tips.push({ icon: '💪', color: '#ef4444', text: `Effort ${Math.round(totalEffort)} тази седмица — много натоварена! Почини се.` });
-  else if (totalEffort > 40) tips.push({ icon: '💪', color: '#f59e0b', text: `Effort ${Math.round(totalEffort)} — добро натоварване. Продължавай!` });
-  else if (totalEffort > 0) tips.push({ icon: '💪', color: '#22c55e', text: `Effort ${Math.round(totalEffort)} — лека седмица. Можеш да добавиш още.` });
+  if (totalEffort > 80) tips.push({ icon: '💪', color: '#ef4444', text: `Effort score ${Math.round(totalEffort)} this week — very heavy load! Prioritise rest.` });
+  else if (totalEffort > 40) tips.push({ icon: '💪', color: '#f59e0b', text: `Effort score ${Math.round(totalEffort)} — solid training week. Keep it up!` });
+  else if (totalEffort > 0) tips.push({ icon: '💪', color: '#22c55e', text: `Effort score ${Math.round(totalEffort)} — light week. Room to add more if you feel good.` });
 
   // No run this week but has runs historically
   const hasRunsEver = allActivities.some(a => (a.sport_type || a.type)?.includes('Run'));
   const hasRunThisWeek = weekActs.some(a => (a.sport_type || a.type)?.includes('Run'));
   if (hasRunsEver && !hasRunThisWeek && daysSince !== 0) {
-    tips.push({ icon: '🏃', color: '#FC4C02', text: 'Тази седмица нямаш бягане. Дори 20 мин лесно бягане е достатъчно!' });
+    tips.push({ icon: '🏃', color: '#FC4C02', text: 'No run this week yet. Even 20 min easy is enough to keep the streak going!' });
   }
 
   if (tips.length === 0) {
-    tips.push({ icon: '🎯', color: '#475569', text: 'Тренирай редовно и ще видиш съвети тук!' });
+    tips.push({ icon: '🎯', color: '#475569', text: 'Train regularly and your coaching tips will appear here!' });
   }
 
   return (
@@ -602,7 +602,7 @@ export default function Strava() {
             ACTIVITY DASHBOARD
           </div>
           <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8, marginBottom: '2rem' }}>
-            Свържи Strava акаунта си за да виждаш<br />бягания, карания и всички тренировки.
+            Connect your Strava account to track runs,<br />rides, and all your workouts.
           </div>
           <button onClick={connect} style={{
             background: 'linear-gradient(135deg, #FC4C02, #ff7a45)',
