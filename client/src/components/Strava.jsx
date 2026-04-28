@@ -690,7 +690,7 @@ export default function Strava() {
       <div style={{
         display: 'flex',
         background: '#0f1420',
-        border: '1px solid #1a2235',
+        border: '1px solid #2d3748',
         borderRadius: 14,
         padding: 4,
         marginBottom: '1.25rem',
@@ -699,17 +699,17 @@ export default function Strava() {
         {['WEEK', 'MONTH'].map(m => (
           <button key={m} onClick={() => setViewMode(m)} style={{
             flex: 1,
-            border: 'none',
-            padding: '0.75rem',
+            border: viewMode === m ? 'none' : '1px solid #2d3748',
+            padding: '0.8rem',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 800,
-            letterSpacing: '0.12em',
+            letterSpacing: '0.14em',
             fontFamily: 'inherit',
             borderRadius: 10,
             transition: 'all 0.2s',
-            background: viewMode === m ? '#FC4C02' : 'transparent',
-            color: viewMode === m ? '#fff' : '#334155',
+            background: viewMode === m ? '#FC4C02' : '#1a2235',
+            color: viewMode === m ? '#fff' : '#94a3b8',
             boxShadow: viewMode === m ? '0 2px 16px #FC4C0250' : 'none',
           }}>{m}</button>
         ))}
