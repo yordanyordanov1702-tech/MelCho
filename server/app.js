@@ -9,6 +9,7 @@ import certRoutes from './routes/certifications.js';
 import importRoutes from './routes/import.js';
 import liveRoutes from './routes/live.js';
 import stravaRoutes from './routes/strava.js';
+import garminRoutes from './routes/garmin.js';
 
 export { db };
 
@@ -24,6 +25,7 @@ app.use('/api/certifications', certRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/live', liveRoutes);
 app.use('/api/strava', stravaRoutes);
+app.use('/api/garmin', garminRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 

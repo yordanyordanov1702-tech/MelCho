@@ -7,6 +7,7 @@ import Headcount from './components/Headcount.jsx';
 import Certifications from './components/Certifications.jsx';
 import ImportExcel from './components/ImportExcel.jsx';
 import Strava from './components/Strava.jsx';
+import Garmin from './components/Garmin.jsx';
 
 const TABS = [
   { id: 'live', label: '⬤ LIVE' },
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'certifications', label: 'CERTIFICATIONS' },
   { id: 'import', label: 'IMPORT' },
   { id: 'strava', label: 'STRAVA' },
+  { id: 'garmin', label: 'GARMIN' },
 ];
 
 export default function App() {
@@ -32,6 +34,7 @@ export default function App() {
       {tab === 'certifications' && <Certifications />}
       {tab === 'import' && <ImportExcel />}
       {tab === 'strava' && <Strava />}
+      {tab === 'garmin' && <Garmin />}
     </Layout>
   );
 }
