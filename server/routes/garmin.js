@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import { GarminConnect } from 'garmin-connect';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { GarminConnect } = require('garmin-connect');
 
 const router = Router();
 
