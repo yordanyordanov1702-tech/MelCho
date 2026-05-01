@@ -17,7 +17,7 @@ async function getClient() {
   loginPromise = (async () => {
     try {
       const gc = new GarminConnect({ username: email, password });
-      await gc.login(email, password);
+      await gc.login();
       client = gc;
       console.log('[Garmin] Logged in successfully');
       return gc;
