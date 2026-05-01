@@ -8,32 +8,50 @@ TOKEN_DIR = '/tmp/garmin_tokens'
 
 try:
     from garminconnect import Garmin
+    import garth
 except ImportError:
     print(json.dumps({"error": "garminconnect_not_installed"}))
     sys.exit(1)
 
-email    = os.environ.get('GARMIN_EMAIL', '')
-password = os.environ.get('GARMIN_PASSWORD', '')
-command  = sys.argv[1] if len(sys.argv) > 1 else 'status'
+email       = os.environ.get('GARMIN_EMAIL', '')
+password    = os.environ.get('GARMIN_PASSWORD', '')
+token_b64   = os.environ.get('GARMIN_TOKEN_BASE64', '')
+command     = sys.argv[1] if len(sys.argv) > 1 else 'status'
 
 
 def get_client():
     os.makedirs(TOKEN_DIR, exist_ok=True)
 
-    # Try cached OAuth tokens first (no Cloudflare challenge)
+    # 1. Prefer base64 tokens from env var (no login flow needed)
+    if token_b64:
+        try:
+            client = garth.Client()
+            client.loads(token_b64)
+            api = Garmin()
+            api.garth = client
+            return api
+        except Exception as e:
+            pass  # Fall through to other methods
+
+    # 2. Try cached tokens from disk
     try:
-        api = Garmin(tokenstore=TOKEN_DIR)
-        api.login()
+        api = Garmin()
+        api.garth.load(TOKEN_DIR)
         return api
     except Exception:
         pass
 
-    # Fresh login with credentials
+    # 3. Fresh login with credentials
     if not email or not password:
-        raise Exception("GARMIN_EMAIL / GARMIN_PASSWORD not set")
+        raise Exception("Set GARMIN_EMAIL + GARMIN_PASSWORD or GARMIN_TOKEN_BASE64 on Render")
 
-    api = Garmin(email, password, tokenstore=TOKEN_DIR)
+    api = Garmin(email, password)
     api.login()
+    # Cache tokens to disk for next call
+    try:
+        api.garth.dump(TOKEN_DIR)
+    except Exception:
+        pass
     return api
 
 
@@ -54,6 +72,11 @@ try:
         limit = int(sys.argv[3]) if len(sys.argv) > 3 else 100
         activities = api.get_activities(start, limit)
         print(json.dumps(activities))
+
+    elif command == 'dump_tokens':
+        # Generate base64 token string to save in Render env var
+        token_str = api.garth.dumps()
+        print(json.dumps({"token_base64": token_str}))
 
     else:
         print(json.dumps({"error": f"Unknown command: {command}"}))
