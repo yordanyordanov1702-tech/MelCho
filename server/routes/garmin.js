@@ -1,90 +1,80 @@
-import { Router } from 'express';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { GarminConnect } = require('garmin-connect');
+import { Router }   from 'express';
+import { execFile }  from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SCRIPT    = join(__dirname, '..', 'garmin_fetch.py');
+const PYTHON    = process.env.PYTHON_PATH || 'python3';
 
 const router = Router();
 
-let client = null;
-let loginPromise = null;
+// ── Run Python script ──────────────────────────────────────────────────────
 
-async function getClient() {
-  const email    = process.env.GARMIN_EMAIL;
-  const password = process.env.GARMIN_PASSWORD;
-  if (!email || !password) return { error: 'no_credentials' };
-
-  if (client) return client;
-  if (loginPromise) return loginPromise;
-
-  loginPromise = (async () => {
-    try {
-      const gc = new GarminConnect({ username: email, password });
-      await gc.login();
-      client = gc;
-      console.log('[Garmin] Logged in successfully');
-      return gc;
-    } catch (e) {
-      console.warn('[Garmin] Login failed:', e.message, e.status || '', e.response?.status || '');
-      loginPromise = null;
-      return { error: e.message };
-    }
-  })();
-
-  return loginPromise;
+function runPython(args, timeout = 40000) {
+  return new Promise((resolve, reject) => {
+    execFile(PYTHON, [SCRIPT, ...args], { timeout, env: process.env }, (err, stdout, stderr) => {
+      const raw = (stdout || '').trim();
+      try {
+        const parsed = JSON.parse(raw);
+        if (err && !parsed.error) parsed.error = stderr || err.message;
+        return resolve(parsed);
+      } catch {
+        reject(new Error(stderr || err?.message || `Bad output: ${raw.slice(0, 200)}`));
+      }
+    });
+  });
 }
 
-// Re-login on session expiry
-async function withRetry(fn) {
-  try {
-    const gc = await getClient();
-    if (!gc) return null;
-    return await fn(gc);
-  } catch (e) {
-    if (e.message?.includes('401') || e.message?.includes('session') || e.message?.toLowerCase().includes('unauthorized')) {
-      client = null;
-      loginPromise = null;
-      const gc = await getClient();
-      if (!gc) return null;
-      return await fn(gc);
-    }
-    throw e;
-  }
-}
+// ── Simple in-memory cache ─────────────────────────────────────────────────
+
+let statusCache        = null;
+let statusCacheAt      = 0;
+let activitiesCache    = null;
+let activitiesCacheAt  = 0;
+const STATUS_TTL       = 5  * 60 * 1000;   // 5 min
+const ACTIVITIES_TTL   = 10 * 60 * 1000;   // 10 min
+
+// ── Routes ─────────────────────────────────────────────────────────────────
 
 router.get('/status', async (req, res) => {
-  const email = process.env.GARMIN_EMAIL;
-  if (!email || !process.env.GARMIN_PASSWORD) {
+  if (!process.env.GARMIN_EMAIL || !process.env.GARMIN_PASSWORD)
     return res.json({ connected: false, reason: 'no_credentials' });
-  }
+
+  const now = Date.now();
+  if (statusCache && now - statusCacheAt < STATUS_TTL)
+    return res.json(statusCache);
+
   try {
-    const gc = await getClient();
-    if (!gc || gc.error) return res.json({ connected: false, reason: gc?.error || 'login_failed' });
-    const result = await gc.getUserProfile();
-    if (!result) return res.json({ connected: false, reason: 'no_profile' });
-    res.json({
-      connected: true,
-      displayName: result.displayName || result.userName || email.split('@')[0],
-      fullName: [result.firstName, result.lastName].filter(Boolean).join(' ') || null,
-      profileImageUrl: result.profileImageUrlMedium || null,
-    });
+    const result = await runPython(['status']);
+    if (result.error) return res.json({ connected: false, reason: result.error });
+    statusCache   = result;
+    statusCacheAt = now;
+    res.json(result);
   } catch (e) {
     res.json({ connected: false, reason: e.message });
   }
 });
 
 router.get('/activities', async (req, res) => {
+  if (!process.env.GARMIN_EMAIL || !process.env.GARMIN_PASSWORD)
+    return res.status(401).json({ error: 'not_connected' });
+
   const start = parseInt(req.query.start || '0', 10);
   const limit = Math.min(parseInt(req.query.limit || '100', 10), 100);
+  const now   = Date.now();
+
+  if (start === 0 && activitiesCache && now - activitiesCacheAt < ACTIVITIES_TTL)
+    return res.json(activitiesCache.slice(0, limit));
+
   try {
-    const activities = await withRetry(gc => gc.getActivities(start, limit));
-    if (!activities) return res.status(401).json({ error: 'not_connected' });
-    res.json(activities);
+    const result = await runPython(['activities', String(start), String(limit)], 60000);
+    if (!Array.isArray(result)) return res.status(500).json({ error: result?.error || 'bad_response' });
+    if (start === 0) { activitiesCache = result; activitiesCacheAt = now; }
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
-
-// Warm up on startup
-getClient().catch(() => {});
 
 export default router;
