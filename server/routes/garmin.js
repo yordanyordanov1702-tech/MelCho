@@ -11,7 +11,7 @@ let loginPromise = null;
 async function getClient() {
   const email    = process.env.GARMIN_EMAIL;
   const password = process.env.GARMIN_PASSWORD;
-  if (!email || !password) return null;
+  if (!email || !password) return { error: 'no_credentials' };
 
   if (client) return client;
   if (loginPromise) return loginPromise;
@@ -24,9 +24,9 @@ async function getClient() {
       console.log('[Garmin] Logged in successfully');
       return gc;
     } catch (e) {
-      console.warn('[Garmin] Login failed:', e.message);
+      console.warn('[Garmin] Login failed:', e.message, e.status || '', e.response?.status || '');
       loginPromise = null;
-      return null;
+      return { error: e.message };
     }
   })();
 
@@ -57,8 +57,10 @@ router.get('/status', async (req, res) => {
     return res.json({ connected: false, reason: 'no_credentials' });
   }
   try {
-    const result = await withRetry(gc => gc.getUserProfile());
-    if (!result) return res.json({ connected: false, reason: 'login_failed' });
+    const gc = await getClient();
+    if (!gc || gc.error) return res.json({ connected: false, reason: gc?.error || 'login_failed' });
+    const result = await gc.getUserProfile();
+    if (!result) return res.json({ connected: false, reason: 'no_profile' });
     res.json({
       connected: true,
       displayName: result.displayName || result.userName || email.split('@')[0],
