@@ -4,6 +4,11 @@ import sys
 import json
 import os
 
+# Add locally vendored packages (installed via pip --target) to path
+_deps = os.path.join(os.path.dirname(__file__), 'python_deps')
+if os.path.isdir(_deps):
+    sys.path.insert(0, _deps)
+
 TOKEN_DIR = '/tmp/garmin_tokens'
 
 try:
