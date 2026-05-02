@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node app.js",
-    "dev": "node --watch app.js",
-    "postinstall": "pip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true"
+    "start": "sh start.sh",
+    "dev": "node --watch app.js"
   },
   "dependencies": {
     "better-sqlite3": "^9.4.3",
