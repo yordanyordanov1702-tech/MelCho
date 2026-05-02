@@ -41,11 +41,20 @@ def get_client():
     except Exception:
         pass
 
-    # 3. Fresh login with credentials
+    # 3. Fresh login with credentials + browser User-Agent (bypasses Cloudflare)
     if not email or not password:
         raise Exception("Set GARMIN_EMAIL + GARMIN_PASSWORD or GARMIN_TOKEN_BASE64 on Render")
 
     api = Garmin(email, password)
+    # Mimic a real browser to avoid Cloudflare 429 blocks
+    api.garth.sess.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "en-US,en;q=0.9",
+    })
     api.login()
     # Cache tokens to disk for next call
     try:
