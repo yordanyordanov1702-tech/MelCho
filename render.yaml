@@ -1,10 +1,9 @@
 services:
   - type: web
     name: melcho-server
-    runtime: node
+    runtime: docker
     rootDir: server
-    buildCommand: npm install && (pip3 install garminconnect -q 2>/dev/null || python3 -m pip install garminconnect -q 2>/dev/null || (curl -sSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && python3 /tmp/get-pip.py -q && python3 -m pip install garminconnect -q) || true)
-    startCommand: npm start
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: NODE_ENV
         value: production
