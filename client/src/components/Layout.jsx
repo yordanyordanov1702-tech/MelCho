@@ -8,7 +8,7 @@ const s = {
   },
   logo: { color: '#3b82f6', fontWeight: 500, fontSize: 15, letterSpacing: '0.08em', whiteSpace: 'nowrap' },
   dot: { width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginRight: 6 },
-  nav: { display: 'flex', gap: '0.25rem', flex: 1 },
+  nav: { display: 'flex', gap: '0.25rem', flex: 1, overflowX: 'auto', scrollbarWidth: 'none' },
   tab: (active) => ({
     padding: '0 1rem', height: 56, border: 'none', background: 'none', cursor: 'pointer',
     color: active ? '#e2e8f0' : '#4a5568', fontSize: 11, letterSpacing: '0.1em',
