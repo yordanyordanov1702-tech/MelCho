@@ -1,30 +1,36 @@
 #!/bin/sh
-echo "[start] Setting up Python dependencies..."
+echo "[start] === Garmin setup ==="
+echo "[start] python3: $(which python3 2>/dev/null || echo 'NOT FOUND')"
+echo "[start] python3 version: $(python3 --version 2>&1 || echo 'N/A')"
+echo "[start] pip: $(python3 -m pip --version 2>&1 || echo 'NOT FOUND')"
 
-# Install garminconnect to a local folder — no root/sudo/system-pip needed
-# --target bypasses PEP 668 (EXTERNALLY-MANAGED) entirely
-DEPS_DIR="$(dirname "$0")/python_deps"
+DEPS_DIR="$(cd "$(dirname "$0")" && pwd)/python_deps"
 mkdir -p "$DEPS_DIR"
+echo "[start] deps dir: $DEPS_DIR"
 
 if python3 -c "import garminconnect" 2>/dev/null; then
-  echo "[start] garminconnect already available"
-elif [ "$(ls -A "$DEPS_DIR" 2>/dev/null)" ]; then
-  echo "[start] python_deps folder exists, skipping install"
+  echo "[start] garminconnect already in system path"
 else
-  echo "[start] Installing garminconnect to $DEPS_DIR ..."
-  python3 -m pip install garminconnect --target "$DEPS_DIR" -q 2>&1 \
-    || pip3 install garminconnect --target "$DEPS_DIR" -q 2>&1 \
-    || echo "[start] Warning: pip install failed"
+  echo "[start] Installing garminconnect --target $DEPS_DIR ..."
+  python3 -m pip install garminconnect --target "$DEPS_DIR" 2>&1
+  echo "[start] pip exit code: $?"
 fi
 
-# Verify
-python3 -c "
+# Verify with local deps on path
+python3 - <<'EOF'
 import sys, os
-d = os.path.join(os.path.dirname('$DEPS_DIR'), 'python_deps')
-if os.path.isdir(d): sys.path.insert(0, d)
-import garminconnect
-print('[start] garminconnect OK')
-" 2>/dev/null || echo "[start] garminconnect still missing"
+d = os.path.join(os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else '.', 'python_deps')
+# fallback: check current dir
+for candidate in [d, './python_deps', '/opt/render/project/src/server/python_deps']:
+    if os.path.isdir(candidate):
+        sys.path.insert(0, candidate)
+        break
+try:
+    import garminconnect
+    print('[start] garminconnect OK — version:', getattr(garminconnect, '__version__', 'unknown'))
+except ImportError as e:
+    print('[start] garminconnect MISSING:', e)
+EOF
 
 echo "[start] Starting Node..."
 exec node app.js
