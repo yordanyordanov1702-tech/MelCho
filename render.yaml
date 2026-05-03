@@ -1,10 +1,7 @@
 services:
   - type: web
-    name: melcho-server
+    name: MelCho
     runtime: node
     rootDir: server
     buildCommand: npm install
     startCommand: node app.js
-    envVars:
-      - key: NODE_ENV
-        value: production
