@@ -1,9 +1,10 @@
 services:
   - type: web
     name: melcho-server
-    runtime: docker
+    runtime: node
     rootDir: server
-    dockerfilePath: ./Dockerfile
+    buildCommand: npm install
+    startCommand: node app.js
     envVars:
       - key: NODE_ENV
         value: production
