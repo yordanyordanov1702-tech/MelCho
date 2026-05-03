@@ -5,3 +5,4 @@ dist/
 *.db-wal
 .env
 .env.local
+server/garmin_lib/

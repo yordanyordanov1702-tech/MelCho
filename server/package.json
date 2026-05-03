@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "preinstall": "pip3 install garminconnect -q 2>/dev/null || true",
+    "preinstall": "pip3 install garminconnect -q --target ./garmin_lib 2>/dev/null || true",
     "start": "sh start.sh",
     "dev": "node --watch app.js"
   },
