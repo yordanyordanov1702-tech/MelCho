@@ -1,26 +1,23 @@
-FROM node:20-slim
+# Stage 1: install Python packages using official Python image
+FROM python:3.11-slim AS python-builder
+RUN pip install garminconnect --target /python_deps --no-cache-dir -q
 
+# Stage 2: Node.js runtime with Python packages copied in
+FROM node:20-slim
 WORKDIR /app
 
-# Install Node dependencies
+# Copy pre-installed Python packages
+COPY --from=python-builder /python_deps /app/python_deps
+
+# Install Node.js dependencies
 COPY package*.json ./
 RUN npm install
-
-# Install Python3 and venv
-RUN apt-get update && \
-    apt-get install -y python3 python3-venv && \
-    rm -rf /var/lib/apt/lists/*
-
-# Create isolated venv and install garminconnect inside it (avoids PEP 668)
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install garminconnect -q
-
-# Put venv's python3 first on PATH so Node's execFile finds it
-ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy app source
 COPY . .
 
-EXPOSE 3000
+# Make sure Python is available for garmin_fetch.py
+RUN apt-get update && apt-get install -y python3 --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
+EXPOSE 3000
 CMD ["node", "app.js"]

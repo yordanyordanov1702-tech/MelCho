@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: melcho-server
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
