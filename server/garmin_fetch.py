@@ -15,8 +15,22 @@ try:
     from garminconnect import Garmin
     import garth
 except ImportError:
-    print(json.dumps({"error": "garminconnect_not_installed"}))
-    sys.exit(1)
+    # Vendored packages may not match Python version — try pip install as fallback
+    try:
+        import subprocess
+        subprocess.run(
+            [sys.executable, '-m', 'pip', 'install', 'garminconnect', '-q', '--user'],
+            check=True, capture_output=True
+        )
+        # Reload site-packages so new install is visible
+        import importlib
+        import site
+        importlib.reload(site)
+        from garminconnect import Garmin
+        import garth
+    except Exception as e:
+        print(json.dumps({"error": "garminconnect_not_installed", "detail": str(e)}))
+        sys.exit(1)
 
 email       = os.environ.get('GARMIN_EMAIL', '')
 password    = os.environ.get('GARMIN_PASSWORD', '')

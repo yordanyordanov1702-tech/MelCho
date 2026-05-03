@@ -3,5 +3,5 @@ services:
     name: MelCho
     runtime: node
     rootDir: server
-    buildCommand: npm install
+    buildCommand: pip3 install garminconnect -q && npm install
     startCommand: node app.js
