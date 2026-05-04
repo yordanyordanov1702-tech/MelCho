@@ -39,18 +39,24 @@ app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 app.get('/api/debug/python', (_, res) => {
   const garminLib  = join(__dirname, 'garmin_lib');
   const pythonDeps = join(__dirname, 'python_deps');
+  const script     = join(__dirname, 'garmin_fetch.py');
   const info = {
     garmin_lib_exists:   existsSync(garminLib),
     garmin_lib_files:    existsSync(garminLib)  ? readdirSync(garminLib).slice(0, 15)  : [],
-    python_deps_exists:  existsSync(pythonDeps),
-    python_deps_files:   existsSync(pythonDeps) ? readdirSync(pythonDeps).slice(0, 5) : [],
+    script_exists:       existsSync(script),
+    __dirname:           __dirname,
   };
+  // Test 1: import with PYTHONPATH (as debug does)
   const PYTHONPATH = [garminLib, pythonDeps].join(':');
   execFile('python3', ['-c',
-    'import sys; print(sys.version); ' +
-    'import garminconnect; print("garminconnect OK")'
-  ], { env: { ...process.env, PYTHONPATH } }, (err, stdout, stderr) => {
-    res.json({ ...info, stdout: stdout.trim(), stderr: stderr.trim(), error: err?.message });
+    `import sys; sys.path.insert(0,'${garminLib}'); import garminconnect; print("OK")`
+  ], { env: process.env }, (err, stdout, stderr) => {
+    info.test_syspath = { stdout: stdout.trim(), stderr: stderr.trim(), error: err?.message };
+    // Test 2: run actual garmin_fetch.py status (exactly as garmin route does)
+    execFile('python3', [script, 'status'], { timeout: 15000, env: process.env }, (err2, out2, err2s) => {
+      info.test_script = { stdout: out2.trim(), stderr: err2s.trim(), error: err2?.message };
+      res.json(info);
+    });
   });
 });
 
