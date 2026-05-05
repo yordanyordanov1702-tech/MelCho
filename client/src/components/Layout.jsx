@@ -10,9 +10,9 @@ const s = {
   dot: { width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginRight: 6 },
   navWrap: { display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, gap: 2 },
   scrollBtn: {
-    background: 'none', border: 'none', color: '#4a5568', cursor: 'pointer',
-    fontSize: 16, padding: '0 4px', flexShrink: 0, lineHeight: 1,
-    transition: 'color 0.15s'
+    background: '#1e2533', border: '1px solid #2d3748', color: '#94a3b8', cursor: 'pointer',
+    fontSize: 18, padding: '0 8px', flexShrink: 0, lineHeight: '28px', borderRadius: 4,
+    transition: 'color 0.15s', userSelect: 'none'
   },
   nav: { display: 'flex', gap: '0.25rem', flex: 1, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' },
   tab: (active) => ({
