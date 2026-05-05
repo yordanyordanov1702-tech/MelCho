@@ -38,7 +38,9 @@ const ACTIVITIES_TTL   = 10 * 60 * 1000;   // 10 min
 // ── Routes ─────────────────────────────────────────────────────────────────
 
 router.get('/status', async (req, res) => {
-  if (!process.env.GARMIN_EMAIL || !process.env.GARMIN_PASSWORD)
+  const hasAuth = process.env.GARMIN_COOKIES || process.env.GARMIN_TOKEN_BASE64 ||
+                  (process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD);
+  if (!hasAuth)
     return res.json({ connected: false, reason: 'no_credentials' });
 
   const now = Date.now();
@@ -57,7 +59,9 @@ router.get('/status', async (req, res) => {
 });
 
 router.get('/activities', async (req, res) => {
-  if (!process.env.GARMIN_EMAIL || !process.env.GARMIN_PASSWORD)
+  const hasAuth = process.env.GARMIN_COOKIES || process.env.GARMIN_TOKEN_BASE64 ||
+                  (process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD);
+  if (!hasAuth)
     return res.status(401).json({ error: 'not_connected' });
 
   const start = parseInt(req.query.start || '0', 10);
