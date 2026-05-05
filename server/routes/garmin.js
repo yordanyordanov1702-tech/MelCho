@@ -11,7 +11,7 @@ const SCRIPT    = join(__dirname, '..', 'garmin_fetch.py');
 const PYTHON    = process.env.PYTHON_PATH || 'python3';
 
 const SESSION_FILE = '/tmp/garmin_session.json';
-const FRONTEND_URL = 'https://melcho.onrender.com';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://mel-cho.vercel.app';
 
 const router = Router();
 
