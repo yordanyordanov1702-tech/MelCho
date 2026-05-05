@@ -11,10 +11,10 @@ import Garmin from './components/Garmin.jsx';
 
 const TABS = [
   { id: 'live', label: '⬤ LIVE' },
-  { id: 'production', label: 'PRODUCTION LOAD' },
+  { id: 'production', label: 'PROD' },
   { id: 'oee', label: 'OEE' },
   { id: 'headcount', label: 'HEADCOUNT' },
-  { id: 'certifications', label: 'CERTIFICATIONS' },
+  { id: 'certifications', label: 'CERTS' },
   { id: 'import', label: 'IMPORT' },
   { id: 'strava', label: 'STRAVA' },
   { id: 'garmin', label: 'GARMIN' },

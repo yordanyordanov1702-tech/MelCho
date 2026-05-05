@@ -16,8 +16,8 @@ const s = {
   },
   nav: { display: 'flex', gap: '0.25rem', flex: 1, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' },
   tab: (active) => ({
-    padding: '0 1rem', height: 56, border: 'none', background: 'none', cursor: 'pointer',
-    color: active ? '#e2e8f0' : '#4a5568', fontSize: 11, letterSpacing: '0.1em', whiteSpace: 'nowrap',
+    padding: '0 0.65rem', height: 56, border: 'none', background: 'none', cursor: 'pointer',
+    color: active ? '#e2e8f0' : '#4a5568', fontSize: 11, letterSpacing: '0.08em', whiteSpace: 'nowrap',
     borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
     transition: 'all 0.15s'
   }),
