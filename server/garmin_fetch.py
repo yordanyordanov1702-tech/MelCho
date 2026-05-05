@@ -47,17 +47,8 @@ def get_client():
     except Exception:
         pass
 
-    # 3. Fresh login (will fail on Render if IP is blocked — use GARMIN_TOKEN_BASE64)
-    if not email or not password:
-        raise Exception("no_credentials")
-
-    api = Garmin(email=email, password=password)
-    api.login()
-    try:
-        api.garth.dump(TOKEN_DIR)
-    except Exception:
-        pass
-    return api
+    # No token available — do NOT attempt fresh login (causes rate limiting)
+    raise Exception("no_token")
 
 
 try:
