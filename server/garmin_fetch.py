@@ -2,7 +2,8 @@
 """Garmin Connect data fetcher — called by Node.js via child_process."""
 import sys, json, os, urllib.request, urllib.error
 
-TOKEN_DIR = '/tmp/garmin_tokens'
+TOKEN_DIR    = '/tmp/garmin_tokens'
+SESSION_FILE = '/tmp/garmin_session.json'
 
 # Add garmin_lib to path for garminconnect / garth
 _base = os.path.dirname(os.path.abspath(__file__))
@@ -12,16 +13,31 @@ if os.path.isdir(_garmin_lib):
 
 email     = os.environ.get('GARMIN_EMAIL', '')
 token_b64 = os.environ.get('GARMIN_TOKEN_BASE64', '')
-cookies   = os.environ.get('GARMIN_COOKIES', '')   # browser session cookies
+cookies   = os.environ.get('GARMIN_COOKIES', '')   # browser session cookies (env var)
 command   = sys.argv[1] if len(sys.argv) > 1 else 'status'
 
-# ── Cookie-based client (no OAuth needed) ────────────────────────────────────
+# ── Load session cookies from file (set by SSO callback) ─────────────────────
 
-def cookie_request(path):
-    """Make a Garmin Connect API call using browser session cookies."""
+def load_session_cookies():
+    """Return cookie string from /tmp/garmin_session.json, or '' if not present."""
+    try:
+        if not os.path.exists(SESSION_FILE):
+            return ''
+        with open(SESSION_FILE, 'r') as f:
+            data = json.load(f)
+        return data.get('cookieString', '')
+    except Exception:
+        return ''
+
+session_cookies = load_session_cookies()
+
+# ── Cookie-based API call helper ──────────────────────────────────────────────
+
+def cookie_request(path, cookie_str):
+    """Make a Garmin Connect API call using the provided cookie string."""
     url = f'https://connect.garmin.com{path}'
     req = urllib.request.Request(url, headers={
-        'Cookie': cookies,
+        'Cookie': cookie_str,
         'NK': 'NT',  # required header for Garmin Connect API
         'X-app-ver': '4.70.2.0',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -30,9 +46,21 @@ def cookie_request(path):
     with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read().decode())
 
+# ── Cookie-based client (no OAuth needed) ────────────────────────────────────
+
+def _effective_cookies():
+    """Return the best available cookie string: env var > session file."""
+    return cookies or session_cookies
+
+def _request_with_best_cookies(path):
+    ck = _effective_cookies()
+    if not ck:
+        raise Exception('no_cookies')
+    return cookie_request(path, ck)
+
 
 def get_profile_via_cookies():
-    data = cookie_request('/modern/proxy/userprofile-service/userprofile/personal-information')
+    data = _request_with_best_cookies('/modern/proxy/userprofile-service/userprofile/personal-information')
     name = (data.get('displayName') or data.get('userName') or
             data.get('userInfo', {}).get('displayName') or 'Athlete')
     return name
@@ -40,7 +68,7 @@ def get_profile_via_cookies():
 
 def get_activities_via_cookies(start=0, limit=100):
     path = f'/modern/proxy/activitylist-service/activities/search/activities?start={start}&limit={limit}'
-    return cookie_request(path)
+    return _request_with_best_cookies(path)
 
 
 # ── garth/garminconnect client ────────────────────────────────────────────────
@@ -80,8 +108,8 @@ def get_garth_client():
 
 try:
     if command == 'status':
-        # Try cookie-based first (most reliable)
-        if cookies:
+        # Try cookie-based first (env var cookies or session file from SSO callback)
+        if cookies or session_cookies:
             try:
                 display_name = get_profile_via_cookies()
                 print(json.dumps({"connected": True, "displayName": display_name, "fullName": display_name}))
@@ -102,8 +130,8 @@ try:
         start = int(sys.argv[2]) if len(sys.argv) > 2 else 0
         limit = int(sys.argv[3]) if len(sys.argv) > 3 else 100
 
-        # Try cookie-based first
-        if cookies:
+        # Try cookie-based first (env var cookies or session file from SSO callback)
+        if cookies or session_cookies:
             try:
                 activities = get_activities_via_cookies(start, limit)
                 print(json.dumps(activities))

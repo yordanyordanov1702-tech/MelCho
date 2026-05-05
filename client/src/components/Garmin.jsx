@@ -428,7 +428,7 @@ export default function Garmin() {
     );
   }
 
-  // ── Not configured ────────────────────────────────────────────────────────
+  // ── Not connected ─────────────────────────────────────────────────────────
   if (!status.connected) {
     return (
       <div style={styles.fullCenter}>
@@ -446,11 +446,24 @@ export default function Garmin() {
           <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.2em', marginBottom: '1.5rem' }}>
             ACTIVITY DASHBOARD
           </div>
-          <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>
-            {status.reason === 'no_credentials'
-              ? 'Add GARMIN_EMAIL and GARMIN_PASSWORD\nto the Render environment variables.'
-              : 'Could not connect to Garmin. Check credentials on Render.'}
+          <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+            Sign in with your Garmin account to load your activity data.
           </div>
+          <button
+            onClick={() => { window.location.href = 'https://melcho.onrender.com/api/garmin/connect'; }}
+            style={{
+              background: 'linear-gradient(135deg, #20a4f3, #60c4f7)',
+              color: '#fff', border: 'none', borderRadius: 12,
+              padding: '0.85rem 2rem', fontSize: 14, fontWeight: 700,
+              letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: '0 4px 20px #20a4f350', transition: 'opacity 0.15s',
+              width: '100%',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+          >
+            CONNECT WITH GARMIN
+          </button>
         </div>
       </div>
     );
