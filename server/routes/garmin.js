@@ -169,10 +169,20 @@ router.get('/status', async (req, res) => {
     if (meta && meta.count > 0) {
       const now = Date.now();
       if (statusCache && now - statusCacheAt < STATUS_TTL) return res.json(statusCache);
+      // Try to get real name from most recent activity
+      let displayName = 'Yordan';
+      try {
+        const row = db.prepare('SELECT data FROM garmin_activities ORDER BY activity_id DESC LIMIT 1').get();
+        if (row) {
+          const act = JSON.parse(row.data);
+          const n = act.ownerFullName;
+          if (n && !/^[0-9a-f-]{30,}$/i.test(n)) displayName = n;
+        }
+      } catch {}
       return res.json({
         connected: true,
-        displayName: 'Yordan',
-        fullName: 'Yordan',
+        displayName,
+        fullName: displayName,
         syncedAt: meta.synced_at,
         activityCount: meta.count,
         source: 'db',
@@ -262,16 +272,20 @@ router.post('/sync', (req, res) => {
     });
     upsert(activities);
 
+    // Count total activities in DB (not just this batch)
+    const totalCount = db.prepare('SELECT COUNT(*) as cnt FROM garmin_activities').get().cnt;
     db.prepare(
       'INSERT OR REPLACE INTO garmin_meta (id, synced_at, count) VALUES (1, ?, ?)'
-    ).run(now, activities.length);
+    ).run(now, totalCount);
 
     // Clear in-memory caches
     clearCaches();
-    if (displayName) {
-      statusCache = { connected: true, displayName, fullName: displayName, syncedAt: now };
-      statusCacheAt = Date.now();
-    }
+    // Use ownerFullName from first activity if displayName is a UUID/hex
+    const resolvedName = (displayName && !/^[0-9a-f-]{30,}$/i.test(displayName))
+      ? displayName
+      : (activities[0]?.ownerFullName || displayName || 'Yordan');
+    statusCache = { connected: true, displayName: resolvedName, fullName: resolvedName, syncedAt: now, activityCount: totalCount };
+    statusCacheAt = Date.now();
 
     res.json({ ok: true, saved: activities.length, synced_at: now });
   } catch (e) {
