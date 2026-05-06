@@ -127,20 +127,71 @@ def get_garth():
     elif not dir_loaded:
         raise Exception("no_token")
 
-    # Access token is expired (or we just loaded from env) — exchange OAuth1 → OAuth2.
-    # The OAuth1 token is long-lived (months); this call works from any IP.
-    _exchange_error = None
+    # Access token is expired — try multiple refresh strategies.
+    _refresh_errors = []
+
+    # Strategy 1: garth.sso.exchange (OAuth1 → OAuth2)
     try:
         from garth.sso import exchange
         garth.client.oauth2_token = exchange(garth.client.oauth1_token, garth.client)
-        garth.save(TOKEN_DIR)  # cache so we don't re-exchange next time
+        garth.save(TOKEN_DIR)
+        garth._refresh_strategy = 'exchange'
+        return garth
     except Exception as ex:
-        # Exchange failed — try anyway with the existing (possibly expired) token
-        _exchange_error = str(ex)
-        pass
+        _refresh_errors.append(f"exchange: {ex}")
 
-    # Stash exchange error for diagnostic use
-    garth._exchange_error = _exchange_error
+    # Strategy 2: standard OAuth2 refresh_token grant
+    # Uses the refresh_token from the existing oauth2 token + consumer credentials
+    try:
+        import base64
+        import urllib.request, urllib.parse
+        # Get consumer credentials (garth fetches these from S3)
+        try:
+            from garth.sso import OAUTH_CONSUMER, OAUTH_CONSUMER_URL
+        except ImportError:
+            OAUTH_CONSUMER, OAUTH_CONSUMER_URL = {}, "https://thegarth.s3.amazonaws.com/oauth_consumer.json"
+        if not OAUTH_CONSUMER:
+            with urllib.request.urlopen(OAUTH_CONSUMER_URL, timeout=10) as r:
+                OAUTH_CONSUMER.update(json.loads(r.read().decode()))
+        consumer_key    = OAUTH_CONSUMER['consumer_key']
+        consumer_secret = OAUTH_CONSUMER['consumer_secret']
+        refresh_token   = garth.client.oauth2_token.refresh_token
+        creds_b64 = base64.b64encode(f'{consumer_key}:{consumer_secret}'.encode()).decode()
+        body = urllib.parse.urlencode({
+            'grant_type':    'refresh_token',
+            'refresh_token': refresh_token,
+        }).encode()
+        req = urllib.request.Request(
+            'https://connectapi.garmin.com/oauth-service/oauth/token',
+            data=body,
+            headers={
+                'Authorization': f'Basic {creds_b64}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'com.garmin.android.apps.connectmobile',
+            },
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=15) as r:
+            token_data = json.loads(r.read().decode())
+        # Update oauth2_token fields
+        o2 = garth.client.oauth2_token
+        garth.client.oauth2_token = type(o2)(
+            scope=getattr(o2, 'scope', ''),
+            jti=getattr(o2, 'jti', ''),
+            token_type=token_data.get('token_type', 'Bearer'),
+            refresh_token=token_data.get('refresh_token', o2.refresh_token),
+            access_token=token_data['access_token'],
+            expires_in=token_data.get('expires_in', 3600),
+        )
+        garth.save(TOKEN_DIR)
+        garth._refresh_strategy = 'oauth2_refresh'
+        return garth
+    except Exception as ex:
+        _refresh_errors.append(f"oauth2_refresh: {ex}")
+
+    # All refresh strategies failed — proceed with potentially-expired token
+    garth._refresh_errors = _refresh_errors
+    garth._refresh_strategy = 'none'
 
     return garth
 
@@ -250,16 +301,15 @@ try:
             info['oauth2_expired'] = _oauth2_expired(o2)
             info['oauth1_has_token'] = bool(getattr(o1, 'oauth_token', None))
             info['access_token_prefix'] = (o2.access_token or '')[:20] if o2 else None
-            # Try exchange
+            # Try full refresh flow (same as get_garth)
+            _g.client.oauth2_token = o2  # reload original for test
             try:
-                from garth.sso import exchange
-                new_o2 = exchange(o1, _g.client)
-                info['exchange_success'] = True
-                info['new_access_token_prefix'] = (new_o2.access_token or '')[:20]
-                _g.client.oauth2_token = new_o2
+                g_full = get_garth()
+                info['refresh_strategy'] = getattr(g_full, '_refresh_strategy', 'unknown')
+                info['refresh_errors'] = getattr(g_full, '_refresh_errors', [])
+                info['new_access_token_prefix'] = (g_full.client.oauth2_token.access_token or '')[:20]
             except Exception as ex:
-                info['exchange_success'] = False
-                info['exchange_error'] = str(ex)[:300]
+                info['refresh_error'] = str(ex)[:300]
             # Try connectapi
             try:
                 data = _g.connectapi('/userprofile-service/socialProfile')
