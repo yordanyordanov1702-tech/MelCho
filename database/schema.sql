@@ -147,6 +147,13 @@ CREATE TABLE IF NOT EXISTS strava_tokens (
   athlete_avatar TEXT
 );
 
+-- Garmin wellness: sleep + training readiness per date
+CREATE TABLE IF NOT EXISTS garmin_wellness (
+  date       TEXT PRIMARY KEY,  -- YYYY-MM-DD
+  data       TEXT NOT NULL,     -- JSON: { sleepScore, sleepSeconds, deepSeconds, remSeconds, readinessScore, readinessLevel, ... }
+  synced_at  INTEGER NOT NULL DEFAULT 0
+);
+
 -- Seed: Operators with certifications
 INSERT OR IGNORE INTO operators (id, name, line_id, cert_expiry) VALUES
   (1,'Ivan Petrov',1,'2026-08-15'),(2,'Maria Georgieva',1,'2026-03-10'),

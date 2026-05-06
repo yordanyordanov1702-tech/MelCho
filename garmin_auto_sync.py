@@ -182,3 +182,64 @@ for i in range(0, len(activities), BATCH):
         sys.exit(1)
 
 log(f"✅ Sync complete — {total_saved} activities synced")
+
+# ── Fetch wellness data (sleep + training readiness) ──────────────────────
+
+log("Fetching wellness data...")
+dates = sorted(set(
+    a.get('startTimeLocal', '')[:10]
+    for a in activities
+    if a.get('startTimeLocal', '')[:10]
+), reverse=True)[:30]  # last 30 unique activity dates
+
+wellness = []
+for date in dates:
+    w = {'date': date}
+    # Sleep
+    try:
+        sleep_resp = garth.connectapi(
+            f'/wellness-service/wellness/dailySleepData/{display_name}',
+            params={'date': date, 'nonSleepBufferMinutes': 60}
+        )
+        dto = sleep_resp.get('dailySleepDTO') or sleep_resp.get('dailySleepDTOList', [{}])[0] if sleep_resp else {}
+        scores = dto.get('sleepScores', {}) or {}
+        overall = scores.get('overall') or {}
+        w['sleepScore']   = overall.get('value') if isinstance(overall, dict) else overall
+        w['sleepSeconds'] = (dto.get('deepSleepSeconds', 0) or 0) + (dto.get('lightSleepSeconds', 0) or 0) + (dto.get('remSleepSeconds', 0) or 0)
+        w['deepSeconds']  = dto.get('deepSleepSeconds', 0) or 0
+        w['remSeconds']   = dto.get('remSleepSeconds', 0) or 0
+        w['sleepQuality'] = overall.get('qualifierKey', '') if isinstance(overall, dict) else ''
+    except Exception as e:
+        log(f"  Sleep {date}: {e}")
+
+    # Training Readiness
+    try:
+        tr_resp = garth.connectapi(f'/metrics-service/metrics/trainingReadiness/{date}')
+        tr = (tr_resp or [{}])[0] if isinstance(tr_resp, list) else (tr_resp or {})
+        w['readinessScore'] = tr.get('score')
+        w['readinessLevel'] = (tr.get('levelMap', {}) or {}).get('overall', {}).get('level', '') or ''
+        if not w['readinessLevel'] and tr.get('score'):
+            s = tr['score']
+            w['readinessLevel'] = 'EXCELLENT' if s >= 80 else 'GOOD' if s >= 60 else 'FAIR' if s >= 40 else 'POOR'
+    except Exception as e:
+        log(f"  Readiness {date}: {e}")
+
+    if w.get('sleepScore') or w.get('readinessScore'):
+        wellness.append(w)
+
+log(f"Got wellness data for {len(wellness)} dates")
+
+# Sync wellness to Render
+if wellness:
+    payload = json.dumps({'wellness': wellness}).encode()
+    req = urllib.request.Request(
+        f'{RENDER_API}/wellness-sync',
+        data=payload, method='POST',
+        headers={'Content-Type': 'application/json', 'x-sync-secret': SYNC_SECRET}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            result = json.loads(r.read().decode())
+        log(f"✅ Wellness sync: {result.get('saved', 0)} dates saved")
+    except Exception as e:
+        log(f"⚠️ Wellness sync failed: {e}")

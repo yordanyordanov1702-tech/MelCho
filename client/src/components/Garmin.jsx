@@ -220,6 +220,50 @@ function WeekBarChart({ activities, monday }) {
   );
 }
 
+// ── Wellness Badge ─────────────────────────────────────────────────────────
+
+function WellnessBadge({ date, wellness }) {
+  const w = wellness[date];
+  if (!w || (!w.sleepScore && !w.readinessScore)) return null;
+
+  const sleepColor = w.sleepScore >= 80 ? '#22c55e' : w.sleepScore >= 60 ? '#f59e0b' : w.sleepScore >= 40 ? '#f97316' : '#ef4444';
+  const readColor  = w.readinessScore >= 80 ? '#22c55e' : w.readinessScore >= 60 ? '#20a4f3' : w.readinessScore >= 40 ? '#f59e0b' : '#ef4444';
+  const sleepHrs   = w.sleepSeconds ? (w.sleepSeconds / 3600).toFixed(1) : null;
+
+  return (
+    <div style={{
+      display: 'flex', gap: 8, padding: '0.6rem 1.25rem',
+      background: '#080c14', borderLeft: '3px solid #1a2235',
+      borderRight: '1px solid #1a2235', borderBottom: '1px solid #1a2235',
+      borderRadius: '0 0 8px 8px', marginTop: -2,
+    }}>
+      {w.sleepScore != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12 }}>😴</span>
+          <span style={{ fontSize: 11, color: sleepColor, fontWeight: 700 }}>{w.sleepScore}</span>
+          <span style={{ fontSize: 9, color: '#475569', letterSpacing: '0.06em' }}>SLEEP</span>
+          {sleepHrs && <span style={{ fontSize: 9, color: '#334155' }}>{sleepHrs}h</span>}
+        </div>
+      )}
+      {w.sleepScore != null && w.readinessScore != null && (
+        <span style={{ color: '#1a2235', fontSize: 11 }}>|</span>
+      )}
+      {w.readinessScore != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12 }}>⚡</span>
+          <span style={{ fontSize: 11, color: readColor, fontWeight: 700 }}>{w.readinessScore}</span>
+          <span style={{ fontSize: 9, color: '#475569', letterSpacing: '0.06em' }}>READINESS</span>
+          {w.readinessLevel && (
+            <span style={{ fontSize: 9, color: readColor, opacity: 0.7, letterSpacing: '0.06em' }}>
+              {w.readinessLevel}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Activity Card ──────────────────────────────────────────────────────────
 
 function ActivityCard({ activity: a }) {
@@ -396,6 +440,7 @@ export default function Garmin() {
   const [selectedWeek, setSelectedWeek] = useState(currentWeekKey());
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
   const [typeFilter, setTypeFilter]     = useState('ALL');
+  const [wellness, setWellness]         = useState({});
 
   useEffect(() => {
     fetch(`${BASE}/garmin/status`)
@@ -416,6 +461,14 @@ export default function Garmin() {
     }
     setAllActivities(all);
     setFetching(false);
+    // Fetch wellness for the dates we have
+    const dates = [...new Set(all.map(a => (a.startDate || '').slice(0, 10)).filter(Boolean))].slice(0, 60);
+    if (dates.length) {
+      fetch(`${BASE}/garmin/wellness?dates=${dates.join(',')}`)
+        .then(r => r.json())
+        .then(d => setWellness(d))
+        .catch(() => {});
+    }
   }, []);
 
   // ── Loading ──────────────────────────────────────────────────────────────
@@ -622,7 +675,12 @@ export default function Garmin() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {filtered.map(a => <ActivityCard key={a.id} activity={a} />)}
+              {filtered.map(a => (
+                <div key={a.id}>
+                  <ActivityCard activity={a} />
+                  <WellnessBadge date={(a.startDate || '').slice(0, 10)} wellness={wellness} />
+                </div>
+              ))}
             </div>
           )}
         </>

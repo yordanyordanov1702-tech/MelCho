@@ -303,4 +303,44 @@ router.get('/sync-status', (req, res) => {
   }
 });
 
+// ── POST /api/garmin/wellness-sync — receive wellness data from local sync script ──
+router.post('/wellness-sync', (req, res) => {
+  const secret = process.env.GARMIN_SYNC_SECRET || 'garmin-sync-2026';
+  const auth   = req.headers['x-sync-secret'] || '';
+  if (auth !== secret) return res.status(401).json({ error: 'invalid_secret' });
+
+  const { wellness } = req.body;  // array of { date, sleepScore, sleepSeconds, deepSeconds, remSeconds, readinessScore, readinessLevel }
+  if (!Array.isArray(wellness)) return res.status(400).json({ error: 'wellness must be an array' });
+
+  try {
+    const insert = db.prepare('INSERT OR REPLACE INTO garmin_wellness (date, data, synced_at) VALUES (?, ?, ?)');
+    const now = Math.floor(Date.now() / 1000);
+    const upsert = db.transaction((items) => {
+      for (const w of items) {
+        if (w.date) insert.run(w.date, JSON.stringify(w), now);
+      }
+    });
+    upsert(wellness);
+    res.json({ ok: true, saved: wellness.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── GET /api/garmin/wellness — returns wellness data for a comma-separated list of dates ──
+router.get('/wellness', (req, res) => {
+  const dates = (req.query.dates || '').split(',').filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  if (!dates.length) return res.json({});
+  try {
+    const result = {};
+    for (const date of dates) {
+      const row = db.prepare('SELECT data FROM garmin_wellness WHERE date = ?').get(date);
+      if (row) result[date] = JSON.parse(row.data);
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
