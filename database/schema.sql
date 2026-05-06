@@ -123,6 +123,19 @@ INSERT OR IGNORE INTO headcount (line_id, week, shift, total, absent) VALUES
   (1,'2026-W16','C',14,1),(2,'2026-W16','C',9,0),(3,'2026-W16','C',12,0),(4,'2026-W16','C',7,1),(5,'2026-W16','C',6,0),
   (1,'2026-W16','D',5,0),(2,'2026-W16','D',3,0),(3,'2026-W16','D',5,0),(4,'2026-W16','D',3,0),(5,'2026-W16','D',3,0);
 
+-- Garmin activities cache (populated by local sync script)
+CREATE TABLE IF NOT EXISTS garmin_activities (
+  activity_id INTEGER PRIMARY KEY,
+  data        TEXT NOT NULL,       -- full activity JSON
+  synced_at   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS garmin_meta (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  synced_at  INTEGER NOT NULL DEFAULT 0,
+  count      INTEGER NOT NULL DEFAULT 0
+);
+
 -- Strava OAuth tokens
 CREATE TABLE IF NOT EXISTS strava_tokens (
   id INTEGER PRIMARY KEY CHECK (id = 1),

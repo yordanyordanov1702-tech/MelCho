@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 import https from 'https';
 import http  from 'http';
 import { writeFileSync, existsSync } from 'fs';
+import { db } from '../db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCRIPT    = join(__dirname, '..', 'garmin_fetch.py');
@@ -161,6 +162,24 @@ router.get('/status', async (req, res) => {
   const hasAuth = process.env.GARMIN_COOKIES || process.env.GARMIN_TOKEN_BASE64 ||
                   (process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD) ||
                   hasSessionFile();
+
+  // If we have synced data in DB, report connected even without live auth
+  try {
+    const meta = db.prepare('SELECT * FROM garmin_meta WHERE id = 1').get();
+    if (meta && meta.count > 0) {
+      const now = Date.now();
+      if (statusCache && now - statusCacheAt < STATUS_TTL) return res.json(statusCache);
+      return res.json({
+        connected: true,
+        displayName: 'Yordan',
+        fullName: 'Yordan',
+        syncedAt: meta.synced_at,
+        activityCount: meta.count,
+        source: 'db',
+      });
+    }
+  } catch (e) { /* DB not ready */ }
+
   if (!hasAuth)
     return res.json({ connected: false, reason: 'no_credentials' });
 
@@ -183,12 +202,28 @@ router.get('/activities', async (req, res) => {
   const hasAuth = process.env.GARMIN_COOKIES || process.env.GARMIN_TOKEN_BASE64 ||
                   (process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD) ||
                   hasSessionFile();
-  if (!hasAuth)
+  // Allow if we have any auth OR if the DB has cached activities
+  const dbCount = db.prepare('SELECT count FROM garmin_meta WHERE id = 1').get();
+  if (!hasAuth && !(dbCount && dbCount.count > 0))
     return res.status(401).json({ error: 'not_connected' });
 
   const start = parseInt(req.query.start || '0', 10);
-  const limit = Math.min(parseInt(req.query.limit || '100', 10), 100);
+  const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
   const now   = Date.now();
+
+  // 1. Try cached DB activities first
+  try {
+    const rows = db.prepare(
+      'SELECT data FROM garmin_activities ORDER BY activity_id DESC LIMIT ? OFFSET ?'
+    ).all(limit, start);
+    if (rows.length > 0) {
+      const acts = rows.map(r => JSON.parse(r.data));
+      return res.json(acts);
+    }
+  } catch (e) { /* DB not ready yet */ }
+
+  // 2. No DB data — try live (will likely fail from Render, but worth trying)
+  if (!hasAuth) return res.status(401).json({ error: 'no_data_synced_yet' });
 
   if (start === 0 && activitiesCache && now - activitiesCacheAt < ACTIVITIES_TTL)
     return res.json(activitiesCache.slice(0, limit));
@@ -200,6 +235,57 @@ router.get('/activities', async (req, res) => {
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/garmin/sync — receive activities from local sync script ──────
+router.post('/sync', (req, res) => {
+  const secret = process.env.GARMIN_SYNC_SECRET || 'garmin-sync-2026';
+  const auth   = req.headers['x-sync-secret'] || req.headers['authorization'] || '';
+  if (auth !== secret && auth !== `Bearer ${secret}`)
+    return res.status(401).json({ error: 'invalid_secret' });
+
+  const { activities, displayName } = req.body;
+  if (!Array.isArray(activities))
+    return res.status(400).json({ error: 'activities must be an array' });
+
+  try {
+    const insert = db.prepare(
+      'INSERT OR REPLACE INTO garmin_activities (activity_id, data, synced_at) VALUES (?, ?, ?)'
+    );
+    const now = Math.floor(Date.now() / 1000);
+    const upsert = db.transaction((acts) => {
+      for (const a of acts) {
+        const id = a.activityId || a.id;
+        if (id) insert.run(id, JSON.stringify(a), now);
+      }
+    });
+    upsert(activities);
+
+    db.prepare(
+      'INSERT OR REPLACE INTO garmin_meta (id, synced_at, count) VALUES (1, ?, ?)'
+    ).run(now, activities.length);
+
+    // Clear in-memory caches
+    clearCaches();
+    if (displayName) {
+      statusCache = { connected: true, displayName, fullName: displayName, syncedAt: now };
+      statusCacheAt = Date.now();
+    }
+
+    res.json({ ok: true, saved: activities.length, synced_at: now });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── GET /api/garmin/sync-status — when was last sync ──────────────────────
+router.get('/sync-status', (req, res) => {
+  try {
+    const meta = db.prepare('SELECT * FROM garmin_meta WHERE id = 1').get();
+    res.json(meta || { synced_at: 0, count: 0 });
+  } catch (e) {
+    res.json({ synced_at: 0, count: 0 });
   }
 });
 

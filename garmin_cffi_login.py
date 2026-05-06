@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
 Login to Garmin using curl_cffi (Chrome TLS) + garth OAuth exchange.
+After successful login, syncs ALL activities to Render's database so
+the web dashboard works even though Garmin blocks server-side API calls.
 """
-import subprocess, sys, getpass, re
+import subprocess, sys, getpass, re, json, urllib.request
 
 subprocess.run([sys.executable, '-m', 'pip', 'install', 'curl_cffi', 'garth', 'beautifulsoup4', '-q'])
 
 from curl_cffi import requests as cffi_requests
 from bs4 import BeautifulSoup
 import garth
+
+RENDER_API     = 'https://melcho.onrender.com/api/garmin'
+SYNC_SECRET    = 'garmin-sync-2026'   # must match GARMIN_SYNC_SECRET on Render
 
 print("=== Garmin Login (Chrome TLS + garth OAuth) ===")
 email    = input("Email: ").strip()
@@ -65,7 +70,6 @@ print(f"✅ Ticket: {ticket_val[:30]}...")
 print("4. Exchanging ticket via garth...")
 garth.configure(domain="garmin.com")
 
-# Use garth's internal OAuth exchange with our ticket
 from garth.sso import get_oauth1_token, exchange
 oauth1 = get_oauth1_token(ticket_val, garth.client)
 oauth2 = exchange(oauth1, garth.client)
@@ -73,24 +77,56 @@ oauth2 = exchange(oauth1, garth.client)
 garth.client.oauth1_token = oauth1
 garth.client.oauth2_token = oauth2
 
-print("5. Verifying token against Garmin Connect API...")
+token_b64 = garth.client.dumps()
+
+print("5. Fetching ALL activities from Garmin...")
+all_activities = []
+start = 0
+while True:
+    batch = garth.connectapi(
+        f'/activitylist-service/activities/search/activities?start={start}&limit=100'
+    )
+    if not batch:
+        break
+    all_activities.extend(batch)
+    print(f"   Fetched {len(all_activities)} activities so far...")
+    if len(batch) < 100:
+        break
+    start += 100
+
+print(f"✅ Total: {len(all_activities)} activities")
+
+# Get display name
 try:
     profile = garth.connectapi('/userprofile-service/socialProfile')
-    display_name = profile.get('displayName') or profile.get('userName') or 'unknown'
-    print(f"✅ API TEST PASSED — displayName: {display_name}")
-    token_valid = True
-except Exception as e:
-    print(f"⚠️  API test: {e}")
-    token_valid = False
+    display_name = profile.get('displayName') or profile.get('userName') or email.split('@')[0]
+except Exception:
+    display_name = email.split('@')[0]
 
+print(f"6. Syncing to Render ({RENDER_API}/sync)...")
+payload = json.dumps({
+    'activities': all_activities,
+    'displayName': display_name,
+}).encode()
+
+req = urllib.request.Request(
+    f'{RENDER_API}/sync',
+    data=payload,
+    method='POST',
+    headers={
+        'Content-Type': 'application/json',
+        'x-sync-secret': SYNC_SECRET,
+    }
+)
 try:
-    acts = garth.connectapi('/activitylist-service/activities/search/activities?start=0&limit=2')
-    print(f"✅ Activities test: got {len(acts)} activities")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        result = json.loads(r.read().decode())
+    print(f"✅ Synced {result.get('saved', '?')} activities to Render!")
 except Exception as e:
-    print(f"⚠️  Activities test: {e}")
-    token_valid = False
+    print(f"⚠️  Sync to Render failed: {e}")
+    print("   (Activities were fetched from Garmin but not saved to server)")
 
-token_b64 = garth.client.dumps()
-print("\n" + ("✅ SUCCESS!" if token_valid else "⚠️  Token generated (local API works), testing from Render might differ"))
-print("Add this as GARMIN_TOKEN_BASE64 in Render:\n")
+print("\n✅ SUCCESS!")
+print("New GARMIN_TOKEN_BASE64 for Render (update if needed):\n")
 print(token_b64)
+print("\n🔄 Run this script again whenever you want to refresh your Garmin data.")

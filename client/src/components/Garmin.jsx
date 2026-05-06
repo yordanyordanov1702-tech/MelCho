@@ -433,7 +433,7 @@ export default function Garmin() {
     return (
       <div style={styles.fullCenter}>
         <div style={{ background: '#0f1420', border: '1px solid #1a2235', borderRadius: 20,
-          padding: '3rem 2.5rem', textAlign: 'center', maxWidth: 380, width: '100%' }}>
+          padding: '3rem 2.5rem', textAlign: 'center', maxWidth: 420, width: '100%' }}>
           <div style={{ width: 72, height: 72, borderRadius: 18,
             background: 'linear-gradient(135deg, #20a4f3, #60c4f7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -446,24 +446,17 @@ export default function Garmin() {
           <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.2em', marginBottom: '1.5rem' }}>
             ACTIVITY DASHBOARD
           </div>
-          <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-            Sign in with your Garmin account to load your activity data.
+          <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.9, marginBottom: '1.5rem', textAlign: 'left',
+            background: '#0a0f1a', border: '1px solid #1a2235', borderRadius: 10, padding: '1rem 1.25rem' }}>
+            <div style={{ color: '#94a3b8', marginBottom: 8 }}>За да заредиш активностите, стартирай скрипта на твоя Mac:</div>
+            <code style={{ color: '#20a4f3', fontSize: 11, display: 'block', marginBottom: 8 }}>
+              cd ~/MelCho<br />
+              python3 garmin_cffi_login.py
+            </code>
+            <div style={{ color: '#475569', fontSize: 11 }}>
+              Скриптът влиза в Garmin Connect и синхронизира всички активности директно в базата.
+            </div>
           </div>
-          <button
-            onClick={() => { window.location.href = 'https://melcho.onrender.com/api/garmin/connect'; }}
-            style={{
-              background: 'linear-gradient(135deg, #20a4f3, #60c4f7)',
-              color: '#fff', border: 'none', borderRadius: 12,
-              padding: '0.85rem 2rem', fontSize: 14, fontWeight: 700,
-              letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: '0 4px 20px #20a4f350', transition: 'opacity 0.15s',
-              width: '100%',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-          >
-            CONNECT WITH GARMIN
-          </button>
         </div>
       </div>
     );
@@ -511,7 +504,12 @@ export default function Garmin() {
             <div style={{ fontSize: 10, color: '#22c55e', letterSpacing: '0.1em', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
               GARMIN CONNECTED
-              {fetching && <span style={{ color: '#f59e0b', marginLeft: 8 }}>· SYNCING...</span>}
+              {fetching && <span style={{ color: '#f59e0b', marginLeft: 8 }}>· LOADING...</span>}
+              {status.syncedAt && !fetching && (
+                <span style={{ color: '#334155', marginLeft: 8 }}>
+                  · synced {new Date(status.syncedAt * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                </span>
+              )}
             </div>
           </div>
         </div>
