@@ -52,9 +52,10 @@ app.get('/api/debug/python', (_, res) => {
     `import sys; sys.path.insert(0,'${garminLib}'); import garminconnect; print("OK")`
   ], { env: process.env }, (err, stdout, stderr) => {
     info.test_syspath = { stdout: stdout.trim(), stderr: stderr.trim(), error: err?.message };
-    // Test 2: run actual garmin_fetch.py status (exactly as garmin route does)
-    execFile('python3', [script, 'status'], { timeout: 15000, env: process.env }, (err2, out2, err2s) => {
-      info.test_script = { stdout: out2.trim(), stderr: err2s.trim(), error: err2?.message };
+    // Test 2: run garmin_fetch.py diagnose to inspect token/exchange state
+    execFile('python3', [script, 'diagnose'], { timeout: 40000, env: process.env }, (err2, out2, err2s) => {
+      try { info.diagnose = JSON.parse(out2.trim()); } catch { info.diagnose_raw = out2.trim(); }
+      info.diagnose_stderr = err2s.trim();
       res.json(info);
     });
   });
