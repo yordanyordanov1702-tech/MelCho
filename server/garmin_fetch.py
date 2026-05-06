@@ -143,13 +143,16 @@ def get_garth():
     if token_b64:
         try:
             garth.client.loads(token_b64)
+            # If the env var token is still fresh, use it directly (skip expensive exchange)
+            if not _oauth2_expired(garth.client.oauth2_token):
+                return garth
         except Exception as e:
             if not dir_loaded:
                 raise Exception(f"token_load_failed: {e}")
     elif not dir_loaded:
         raise Exception("no_token")
 
-    # Access token is expired — try multiple refresh strategies.
+    # Only reach here if the token IS expired — try multiple refresh strategies.
     _refresh_errors = []
 
     # Strategy 1: garth.sso.exchange (OAuth1 → OAuth2)
