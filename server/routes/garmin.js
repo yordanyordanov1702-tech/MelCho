@@ -221,13 +221,26 @@ router.get('/activities', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
   const now   = Date.now();
 
-  // 1. Try cached DB activities first
+  // 1. Try cached DB activities first (join with wellness data)
   try {
     const rows = db.prepare(
       'SELECT data FROM garmin_activities ORDER BY activity_id DESC LIMIT ? OFFSET ?'
     ).all(limit, start);
     if (rows.length > 0) {
       const acts = rows.map(r => JSON.parse(r.data));
+      // Attach sleep/wellness data to each activity by date
+      try {
+        const dates = [...new Set(acts.map(a => (a.startTimeLocal || '').slice(0, 10)).filter(Boolean))];
+        const wellnessMap = {};
+        for (const d of dates) {
+          const w = db.prepare('SELECT data FROM garmin_wellness WHERE date = ?').get(d);
+          if (w) wellnessMap[d] = JSON.parse(w.data);
+        }
+        for (const a of acts) {
+          const d = (a.startTimeLocal || '').slice(0, 10);
+          if (wellnessMap[d]) a._wellness = wellnessMap[d];
+        }
+      } catch {}
       return res.json(acts);
     }
   } catch (e) { /* DB not ready yet */ }
