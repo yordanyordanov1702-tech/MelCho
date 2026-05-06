@@ -117,7 +117,13 @@ def garth_get_profile(g):
                     data.get('userInfo', {}).get('displayName') or 'Athlete')
             return name
         except Exception as e:
-            errors.append(f"{path}: {e}")
+            detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    detail += f' | body: {e.response.text[:200]}'
+                except Exception:
+                    pass
+            errors.append(f"{path}: {detail}")
     raise Exception(f"profile_failed: {'; '.join(errors)}")
 
 
@@ -131,7 +137,14 @@ def garth_get_activities(g, start, limit):
             data = g.connectapi(path)
             return data
         except Exception as e:
-            errors.append(f"{path}: {e}")
+            # Capture response body if available (garth raises GarthHTTPError with .response)
+            detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    detail += f' | body: {e.response.text[:300]}'
+                except Exception:
+                    pass
+            errors.append(f"{path}: {detail}")
     raise Exception(f"activities_failed: {'; '.join(errors)}")
 
 
