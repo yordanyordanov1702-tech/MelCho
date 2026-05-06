@@ -212,17 +212,17 @@ for date in dates:
     except Exception as e:
         log(f"  Sleep {date}: {e}")
 
-    # Training Readiness
+    # Training Readiness (only if watch supports it — silently skip 404)
     try:
         tr_resp = garth.connectapi(f'/metrics-service/metrics/trainingReadiness/{date}')
         tr = (tr_resp or [{}])[0] if isinstance(tr_resp, list) else (tr_resp or {})
-        w['readinessScore'] = tr.get('score')
-        w['readinessLevel'] = (tr.get('levelMap', {}) or {}).get('overall', {}).get('level', '') or ''
-        if not w['readinessLevel'] and tr.get('score'):
+        if tr.get('score'):
+            w['readinessScore'] = tr.get('score')
             s = tr['score']
-            w['readinessLevel'] = 'EXCELLENT' if s >= 80 else 'GOOD' if s >= 60 else 'FAIR' if s >= 40 else 'POOR'
-    except Exception as e:
-        log(f"  Readiness {date}: {e}")
+            w['readinessLevel'] = (tr.get('levelMap', {}) or {}).get('overall', {}).get('level', '') \
+                or ('EXCELLENT' if s >= 80 else 'GOOD' if s >= 60 else 'FAIR' if s >= 40 else 'POOR')
+    except Exception:
+        pass  # Not supported by this watch model
 
     if w.get('sleepScore') or w.get('readinessScore'):
         wellness.append(w)
