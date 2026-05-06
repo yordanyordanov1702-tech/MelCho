@@ -48,6 +48,28 @@ def cookie_request(path, cookie_str):
 def _effective_cookies():
     return cookies or session_cookies
 
+
+# ── curl_cffi Chrome-TLS API call (bypasses Garmin IP/TLS fingerprint checks) ─
+
+def cffi_connectapi(path, access_token):
+    """Call connectapi.garmin.com using curl_cffi Chrome TLS impersonation.
+    This bypasses Garmin's TLS fingerprint checks that cause 401 from standard
+    Python HTTP clients on cloud server IPs."""
+    from curl_cffi import requests as cffi_requests
+    url = f'https://connectapi.garmin.com{path}'
+    sess = cffi_requests.Session(impersonate="chrome120")
+    resp = sess.get(url, headers={
+        'Authorization': f'Bearer {access_token}',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'di-backend': 'connectapi.garmin.com',
+        'NK': 'NT',
+        'X-app-ver': '4.70.2.0',
+    }, timeout=20)
+    resp.raise_for_status()
+    return resp.json()
+
 def get_profile_via_cookies():
     ck = _effective_cookies()
     if not ck:
@@ -197,12 +219,15 @@ def get_garth():
 
 
 def garth_get_profile(g):
-    """Fetch display name via garth.connectapi, trying multiple paths."""
+    """Fetch display name via garth.connectapi, falling back to curl_cffi on 401."""
     errors = []
+    access_token = g.client.oauth2_token.access_token if g.client.oauth2_token else None
+
     for path in [
         '/userprofile-service/socialProfile',
         '/userprofile-service/userprofile/personal-information',
     ]:
+        # Try garth first
         try:
             data = g.connectapi(path)
             name = (data.get('displayName') or data.get('userName') or
@@ -210,33 +235,46 @@ def garth_get_profile(g):
             return name
         except Exception as e:
             detail = str(e)
-            if hasattr(e, 'response') and e.response is not None:
-                try:
-                    detail += f' | body: {e.response.text[:200]}'
-                except Exception:
-                    pass
-            errors.append(f"{path}: {detail}")
+            errors.append(f"garth {path}: {detail}")
+
+        # Try curl_cffi (Chrome TLS) as fallback
+        if access_token:
+            try:
+                data = cffi_connectapi(path, access_token)
+                name = (data.get('displayName') or data.get('userName') or
+                        data.get('userInfo', {}).get('displayName') or 'Athlete')
+                return name
+            except Exception as e:
+                errors.append(f"cffi {path}: {e}")
+
     raise Exception(f"profile_failed: {'; '.join(errors)}")
 
 
 def garth_get_activities(g, start, limit):
-    """Fetch activities via garth.connectapi."""
+    """Fetch activities via garth.connectapi, falling back to curl_cffi on 401."""
+    path = f'/activitylist-service/activities/search/activities?start={start}&limit={limit}'
+    access_token = g.client.oauth2_token.access_token if g.client.oauth2_token else None
     errors = []
-    for path in [
-        f'/activitylist-service/activities/search/activities?start={start}&limit={limit}',
-    ]:
+
+    # Try garth first
+    try:
+        return g.connectapi(path)
+    except Exception as e:
+        detail = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                detail += f' | body: {e.response.text[:200]}'
+            except Exception:
+                pass
+        errors.append(f"garth: {detail}")
+
+    # Try curl_cffi (Chrome TLS impersonation) as fallback
+    if access_token:
         try:
-            data = g.connectapi(path)
-            return data
+            return cffi_connectapi(path, access_token)
         except Exception as e:
-            # Capture response body if available (garth raises GarthHTTPError with .response)
-            detail = str(e)
-            if hasattr(e, 'response') and e.response is not None:
-                try:
-                    detail += f' | body: {e.response.text[:300]}'
-                except Exception:
-                    pass
-            errors.append(f"{path}: {detail}")
+            errors.append(f"cffi: {e}")
+
     raise Exception(f"activities_failed: {'; '.join(errors)}")
 
 
@@ -310,7 +348,7 @@ try:
                 info['new_access_token_prefix'] = (g_full.client.oauth2_token.access_token or '')[:20]
             except Exception as ex:
                 info['refresh_error'] = str(ex)[:300]
-            # Try connectapi
+            # Try connectapi via garth
             try:
                 data = _g.connectapi('/userprofile-service/socialProfile')
                 info['connectapi_success'] = True
@@ -318,6 +356,15 @@ try:
             except Exception as ex:
                 info['connectapi_success'] = False
                 info['connectapi_error'] = str(ex)[:300]
+            # Try connectapi via curl_cffi
+            try:
+                at = _g.client.oauth2_token.access_token
+                data2 = cffi_connectapi('/userprofile-service/socialProfile', at)
+                info['cffi_success'] = True
+                info['cffi_displayName'] = data2.get('displayName', 'unknown')
+            except Exception as ex:
+                info['cffi_success'] = False
+                info['cffi_error'] = str(ex)[:300]
         except Exception as ex:
             info['token_loaded'] = False
             info['load_error'] = str(ex)[:200]
