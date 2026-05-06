@@ -54,7 +54,7 @@ def _effective_cookies():
 def cffi_connectapi(path, access_token):
     """Call connectapi.garmin.com using curl_cffi Chrome TLS impersonation.
     This bypasses Garmin's TLS fingerprint checks that cause 401 from standard
-    Python HTTP clients on cloud server IPs."""
+    Python HTTP clients on cloud server IPs (same technique that bypassed SSO 429)."""
     from curl_cffi import requests as cffi_requests
     url = f'https://connectapi.garmin.com{path}'
     sess = cffi_requests.Session(impersonate="chrome120")
@@ -63,9 +63,9 @@ def cffi_connectapi(path, access_token):
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'en-US,en;q=0.9',
-        'di-backend': 'connectapi.garmin.com',
         'NK': 'NT',
         'X-app-ver': '4.70.2.0',
+        'X-requested-with': 'XMLHttpRequest',
     }, timeout=20)
     resp.raise_for_status()
     return resp.json()
