@@ -129,13 +129,18 @@ def get_garth():
 
     # Access token is expired (or we just loaded from env) — exchange OAuth1 → OAuth2.
     # The OAuth1 token is long-lived (months); this call works from any IP.
+    _exchange_error = None
     try:
         from garth.sso import exchange
         garth.client.oauth2_token = exchange(garth.client.oauth1_token, garth.client)
         garth.save(TOKEN_DIR)  # cache so we don't re-exchange next time
-    except Exception:
+    except Exception as ex:
         # Exchange failed — try anyway with the existing (possibly expired) token
+        _exchange_error = str(ex)
         pass
+
+    # Stash exchange error for diagnostic use
+    garth._exchange_error = _exchange_error
 
     return garth
 
@@ -227,6 +232,46 @@ try:
         g = get_garth()
         activities = garth_get_activities(g, start, limit)
         print(json.dumps(activities))
+
+    elif command == 'diagnose':
+        import base64
+        info = {}
+        try:
+            import garth as _g
+            _g.configure(domain="garmin.com")
+            if token_b64:
+                _g.client.loads(token_b64)
+            else:
+                _g.load(TOKEN_DIR)
+            o2 = _g.client.oauth2_token
+            o1 = _g.client.oauth1_token
+            info['token_loaded'] = True
+            info['oauth2_expires_at'] = str(getattr(o2, 'expires_at', 'unknown'))
+            info['oauth2_expired'] = _oauth2_expired(o2)
+            info['oauth1_has_token'] = bool(getattr(o1, 'oauth_token', None))
+            info['access_token_prefix'] = (o2.access_token or '')[:20] if o2 else None
+            # Try exchange
+            try:
+                from garth.sso import exchange
+                new_o2 = exchange(o1, _g.client)
+                info['exchange_success'] = True
+                info['new_access_token_prefix'] = (new_o2.access_token or '')[:20]
+                _g.client.oauth2_token = new_o2
+            except Exception as ex:
+                info['exchange_success'] = False
+                info['exchange_error'] = str(ex)[:300]
+            # Try connectapi
+            try:
+                data = _g.connectapi('/userprofile-service/socialProfile')
+                info['connectapi_success'] = True
+                info['displayName'] = data.get('displayName', 'unknown')
+            except Exception as ex:
+                info['connectapi_success'] = False
+                info['connectapi_error'] = str(ex)[:300]
+        except Exception as ex:
+            info['token_loaded'] = False
+            info['load_error'] = str(ex)[:200]
+        print(json.dumps(info))
 
     elif command == 'dump_tokens':
         g = get_garth()
