@@ -79,29 +79,65 @@ def get_activities_via_cookies(start=0, limit=100):
 
 # ── garth direct client (no garminconnect wrapper) ────────────────────────────
 
+import time as _time
+
+def _oauth2_expired(oauth2_token):
+    """Return True if the OAuth2 access_token has expired (or we can't tell)."""
+    try:
+        ea = oauth2_token.expires_at
+        # expires_at may be a datetime or a float unix timestamp
+        ts = ea.timestamp() if hasattr(ea, 'timestamp') else float(ea)
+        return ts < _time.time() + 30  # 30-second buffer
+    except Exception:
+        return True  # assume expired if we can't determine
+
+
 def get_garth():
-    """Load garth with token, return garth module ready to use."""
+    """Load garth with token, return garth module ready to use.
+    Auto-refreshes the OAuth2 access_token using the long-lived OAuth1 token
+    when expired. Caches refreshed tokens in TOKEN_DIR to avoid re-refreshing
+    on every call within the same process/dyno lifetime."""
     try:
         import garth
     except ImportError as e:
         raise Exception(f"garth_not_installed: {e}")
 
     garth.configure(domain="garmin.com")
+    os.makedirs(TOKEN_DIR, exist_ok=True)
 
-    if token_b64:
-        try:
-            garth.client.loads(token_b64)
-            return garth
-        except Exception as e:
-            pass  # fall through to directory load
-
+    # Try TOKEN_DIR first — may have a freshly-exchanged token from a recent call
+    dir_loaded = False
     try:
         garth.load(TOKEN_DIR)
-        return garth
+        dir_loaded = True
     except Exception:
         pass
 
-    raise Exception("no_token")
+    # If TOKEN_DIR token is fresh, use it directly
+    if dir_loaded and not _oauth2_expired(garth.client.oauth2_token):
+        return garth
+
+    # TOKEN_DIR token is absent/expired — load base token from env var
+    if token_b64:
+        try:
+            garth.client.loads(token_b64)
+        except Exception as e:
+            if not dir_loaded:
+                raise Exception(f"token_load_failed: {e}")
+    elif not dir_loaded:
+        raise Exception("no_token")
+
+    # Access token is expired (or we just loaded from env) — exchange OAuth1 → OAuth2.
+    # The OAuth1 token is long-lived (months); this call works from any IP.
+    try:
+        from garth.sso import exchange
+        garth.client.oauth2_token = exchange(garth.client.oauth1_token, garth.client)
+        garth.save(TOKEN_DIR)  # cache so we don't re-exchange next time
+    except Exception:
+        # Exchange failed — try anyway with the existing (possibly expired) token
+        pass
+
+    return garth
 
 
 def garth_get_profile(g):
