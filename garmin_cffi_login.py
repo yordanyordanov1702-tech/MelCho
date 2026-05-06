@@ -103,28 +103,39 @@ try:
 except Exception:
     display_name = email.split('@')[0]
 
-print(f"6. Syncing to Render ({RENDER_API}/sync)...")
-payload = json.dumps({
-    'activities': all_activities,
-    'displayName': display_name,
-}).encode()
+print(f"6. Syncing to Render ({RENDER_API}/sync) in batches...")
+BATCH = 100
+total_saved = 0
+sync_ok = True
+for i in range(0, len(all_activities), BATCH):
+    batch = all_activities[i:i+BATCH]
+    payload = json.dumps({
+        'activities': batch,
+        'displayName': display_name,
+    }).encode()
+    req = urllib.request.Request(
+        f'{RENDER_API}/sync',
+        data=payload,
+        method='POST',
+        headers={
+            'Content-Type': 'application/json',
+            'x-sync-secret': SYNC_SECRET,
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            result = json.loads(r.read().decode())
+        total_saved += result.get('saved', len(batch))
+        print(f"   Batch {i//BATCH + 1}: {total_saved} / {len(all_activities)} synced")
+    except Exception as e:
+        print(f"⚠️  Batch {i//BATCH + 1} failed: {e}")
+        sync_ok = False
+        break
 
-req = urllib.request.Request(
-    f'{RENDER_API}/sync',
-    data=payload,
-    method='POST',
-    headers={
-        'Content-Type': 'application/json',
-        'x-sync-secret': SYNC_SECRET,
-    }
-)
-try:
-    with urllib.request.urlopen(req, timeout=30) as r:
-        result = json.loads(r.read().decode())
-    print(f"✅ Synced {result.get('saved', '?')} activities to Render!")
-except Exception as e:
-    print(f"⚠️  Sync to Render failed: {e}")
-    print("   (Activities were fetched from Garmin but not saved to server)")
+if sync_ok:
+    print(f"✅ All {total_saved} activities synced to Render!")
+else:
+    print("⚠️  Partial sync. Run the script again to retry.")
 
 print("\n✅ SUCCESS!")
 print("New GARMIN_TOKEN_BASE64 for Render (update if needed):\n")
