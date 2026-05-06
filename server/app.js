@@ -62,4 +62,15 @@ app.get('/api/debug/python', (_, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  // On startup, check if DB is empty and notify (data needs re-sync after redeploy)
+  try {
+    const meta = db.prepare('SELECT count FROM garmin_meta WHERE id = 1').get();
+    if (!meta || meta.count === 0) {
+      console.log('[garmin] DB is empty after deploy — run garmin_auto_sync.py to restore data');
+    } else {
+      console.log(`[garmin] DB has ${meta.count} activities`);
+    }
+  } catch {}
+});
