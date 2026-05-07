@@ -221,6 +221,8 @@ router.get('/activities', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
   const now   = Date.now();
 
+  res.setHeader('Cache-Control', 'no-store');
+
   // 1. Try cached DB activities first (join with wellness data)
   try {
     const rows = db.prepare(
