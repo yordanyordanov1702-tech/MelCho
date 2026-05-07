@@ -5,16 +5,22 @@ Credentials stored in ~/.garmin_sync.conf (chmod 600).
 Logs to ~/garmin_sync.log.
 Only fetches recent activities (last 200) for efficiency.
 """
-import subprocess, sys, os, json, getpass, re, time, urllib.request
+import sys, os, json, getpass, re, time, urllib.request
 from pathlib import Path
 from datetime import datetime
 
-subprocess.run([sys.executable, '-m', 'pip', 'install', 'curl_cffi', 'garth', 'beautifulsoup4', '-q'],
-               capture_output=True)
-
-from curl_cffi import requests as cffi_requests
-from bs4 import BeautifulSoup
-import garth
+# Install deps only if missing (avoids crash in launchd context)
+try:
+    from curl_cffi import requests as cffi_requests
+    from bs4 import BeautifulSoup
+    import garth
+except ImportError:
+    import subprocess
+    subprocess.run([sys.executable, '-m', 'pip', 'install', 'curl_cffi', 'garth', 'beautifulsoup4', '-q'],
+                   capture_output=True)
+    from curl_cffi import requests as cffi_requests
+    from bs4 import BeautifulSoup
+    import garth
 
 RENDER_API  = 'https://melcho.onrender.com/api/garmin'
 SYNC_SECRET = 'garmin-sync-2026'
