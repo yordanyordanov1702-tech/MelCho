@@ -221,44 +221,6 @@ function WeekBarChart({ activities, monday }) {
   );
 }
 
-// ── Wellness Badge ─────────────────────────────────────────────────────────
-
-function WellnessBadge({ w }) {
-  if (!w || !w.sleepScore) return (
-    <div style={{ fontSize: 9, color: '#334155', padding: '2px 1.25rem', background: '#080c14',
-      borderLeft: '3px solid #1a2235', borderRight: '1px solid #1a2235', borderBottom: '1px solid #1a2235',
-      borderRadius: '0 0 6px 6px', marginTop: -2 }}>
-      sleep: {w ? JSON.stringify(w).slice(0,40) : 'null'}
-    </div>
-  );
-
-  const sleepColor = w.sleepScore >= 80 ? '#22c55e' : w.sleepScore >= 60 ? '#f59e0b' : w.sleepScore >= 40 ? '#f97316' : '#ef4444';
-  const sleepHrs   = w.sleepSeconds ? (w.sleepSeconds / 3600).toFixed(1) : null;
-  const deep       = w.deepSeconds  ? Math.round(w.deepSeconds / 60) : null;
-  const rem        = w.remSeconds   ? Math.round(w.remSeconds / 60) : null;
-
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12, padding: '0.5rem 1.25rem',
-      background: '#080c14', borderLeft: `3px solid ${sleepColor}40`,
-      borderRight: '1px solid #1a2235', borderBottom: '1px solid #1a2235',
-      borderRadius: '0 0 8px 8px', marginTop: -2,
-    }}>
-      <span style={{ fontSize: 14 }}>😴</span>
-      <span style={{ fontSize: 13, color: sleepColor, fontWeight: 800 }}>{w.sleepScore}</span>
-      <span style={{ fontSize: 9, color: '#475569', letterSpacing: '0.08em' }}>SLEEP</span>
-      {sleepHrs && <span style={{ fontSize: 10, color: '#475569' }}>{sleepHrs}h</span>}
-      {deep != null && <span style={{ fontSize: 9, color: '#334155' }}>deep {deep}m</span>}
-      {rem  != null && <span style={{ fontSize: 9, color: '#334155' }}>rem {rem}m</span>}
-      {w.sleepQuality && (
-        <span style={{ fontSize: 9, color: sleepColor, opacity: 0.6, letterSpacing: '0.06em' }}>
-          {w.sleepQuality}
-        </span>
-      )}
-    </div>
-  );
-}
-
 // ── Activity Card ──────────────────────────────────────────────────────────
 
 function ActivityCard({ activity: a }) {
@@ -321,6 +283,23 @@ function ActivityCard({ activity: a }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+        {a.wellness?.sleepScore && (() => {
+          const w = a.wellness;
+          const sc = w.sleepScore;
+          const col = sc >= 80 ? '#22c55e' : sc >= 60 ? '#f59e0b' : sc >= 40 ? '#f97316' : '#ef4444';
+          const hrs = w.sleepSeconds ? (w.sleepSeconds / 3600).toFixed(1) : null;
+          return (
+            <div style={{ textAlign: 'right', borderBottom: `1px solid #1a2235`, paddingBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: 11 }}>😴</span>
+                <span style={{ fontSize: 15, color: col, fontWeight: 800, lineHeight: 1 }}>{sc}</span>
+              </div>
+              <div style={{ fontSize: 9, color: '#475569', marginTop: 1 }}>
+                {hrs && `${hrs}h · `}{w.sleepQuality || 'SLEEP'}
+              </div>
+            </div>
+          );
+        })()}
         {effort > 0 && (
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 16, color: ef.color, fontWeight: 800, lineHeight: 1 }}>{effort}</div>
@@ -662,10 +641,7 @@ export default function Garmin() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filtered.map(a => (
-                <div key={a.id}>
-                  <ActivityCard activity={a} />
-                  <WellnessBadge w={a.wellness} />
-                </div>
+                <ActivityCard key={a.id} activity={a} />
               ))}
             </div>
           )}
