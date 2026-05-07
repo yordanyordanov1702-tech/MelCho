@@ -125,14 +125,27 @@ if not token_valid:
     os.chmod(TOKEN_FILE, 0o600)
     log("Token saved for next run")
 
-# ── Fetch recent activities ────────────────────────────────────────────────
+# ── Check if Render DB is empty (needs full resync) ───────────────────────
 
-log("Fetching recent activities from Garmin...")
+try:
+    with urllib.request.urlopen(f'{RENDER_API}/sync-status', timeout=10) as r:
+        meta = json.loads(r.read().decode())
+    db_empty = meta.get('count', 0) == 0
+except Exception:
+    db_empty = True  # assume empty if can't reach
+
+if db_empty:
+    log("Render DB is empty — fetching ALL activities for full resync...")
+else:
+    log("Render DB has data — fetching recent 200 activities...")
+
+# ── Fetch activities ───────────────────────────────────────────────────────
+
 activities = []
 start = 0
-FETCH_LIMIT = 200   # fetch last 200 — covers ~2 weeks of daily training
+FETCH_LIMIT = None if db_empty else 200  # all if empty, else last 200
 
-while len(activities) < FETCH_LIMIT:
+while True:
     batch = garth.connectapi(
         f'/activitylist-service/activities/search/activities?start={start}&limit=100'
     )
@@ -140,11 +153,13 @@ while len(activities) < FETCH_LIMIT:
         break
     activities.extend(batch)
     log(f"  Fetched {len(activities)}...")
-    if len(batch) < 100 or len(activities) >= FETCH_LIMIT:
+    if len(batch) < 100:
+        break
+    if FETCH_LIMIT and len(activities) >= FETCH_LIMIT:
         break
     start += 100
 
-log(f"Got {len(activities)} recent activities")
+log(f"Got {len(activities)} activities")
 
 # ── Get display name ───────────────────────────────────────────────────────
 
