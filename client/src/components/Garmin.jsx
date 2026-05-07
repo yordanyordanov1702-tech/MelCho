@@ -258,6 +258,23 @@ function ActivityCard({ activity: a }) {
         <div style={{ fontSize: 10, color: '#475569', marginBottom: 8 }}>
           {fmtDayShort(a.startDate)}
         </div>
+        {/* Sleep — shown between date and stats */}
+        {a.wellness?.sleepScore && (() => {
+          const sc = a.wellness.sleepScore;
+          const col = sc >= 80 ? '#22c55e' : sc >= 60 ? '#f59e0b' : sc >= 40 ? '#f97316' : '#ef4444';
+          const hrs = a.wellness.sleepSeconds ? (a.wellness.sleepSeconds / 3600).toFixed(1) : null;
+          const qual = a.wellness.sleepQuality || '';
+          return (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: col + '18', border: `1px solid ${col}40`,
+              borderRadius: 20, padding: '3px 10px', marginBottom: 8 }}>
+              <span style={{ fontSize: 13 }}>😴</span>
+              <span style={{ fontSize: 16, color: col, fontWeight: 800, lineHeight: 1 }}>{sc}</span>
+              {hrs && <span style={{ fontSize: 11, color: col, opacity: 0.8 }}>{hrs}h</span>}
+              {qual && <span style={{ fontSize: 9, color: col, opacity: 0.6, letterSpacing: '0.06em' }}>{qual}</span>}
+            </div>
+          );
+        })()}
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {a.distance > 0 && (
             <span style={{ fontSize: 11, color: '#94a3b8' }}>
@@ -283,23 +300,6 @@ function ActivityCard({ activity: a }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-        {a.wellness?.sleepScore && (() => {
-          const w = a.wellness;
-          const sc = w.sleepScore;
-          const col = sc >= 80 ? '#22c55e' : sc >= 60 ? '#f59e0b' : sc >= 40 ? '#f97316' : '#ef4444';
-          const hrs = w.sleepSeconds ? (w.sleepSeconds / 3600).toFixed(1) : null;
-          return (
-            <div style={{ textAlign: 'right', borderBottom: `1px solid #1a2235`, paddingBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 11 }}>😴</span>
-                <span style={{ fontSize: 15, color: col, fontWeight: 800, lineHeight: 1 }}>{sc}</span>
-              </div>
-              <div style={{ fontSize: 9, color: '#475569', marginTop: 1 }}>
-                {hrs && `${hrs}h · `}{w.sleepQuality || 'SLEEP'}
-              </div>
-            </div>
-          );
-        })()}
         {effort > 0 && (
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 16, color: ef.color, fontWeight: 800, lineHeight: 1 }}>{effort}</div>
@@ -318,6 +318,124 @@ function ActivityCard({ activity: a }) {
             <div style={{ fontSize: 9, color: '#475569' }}>kcal</div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Score Dashboard ────────────────────────────────────────────────────────
+
+function ScoreDashboard({ allActivities }) {
+  if (!allActivities.length) return null;
+
+  const now = new Date();
+  const msPerDay = 86400000;
+
+  // Effort per day for last 28 days
+  const acts28 = allActivities.filter(a => {
+    if (!a.startDate) return false;
+    return (now - new Date(a.startDate)) / msPerDay <= 28;
+  });
+  const acts7 = acts28.filter(a => (now - new Date(a.startDate)) / msPerDay <= 7);
+
+  // Acute Load (last 7d) and Chronic Load (last 28d avg weekly)
+  const acuteLoad  = Math.round(acts7.reduce((s, a) => s + calcEffort(a), 0));
+  const chronicLoad = Math.round(acts28.reduce((s, a) => s + calcEffort(a), 0) / 4);
+  const form = chronicLoad - acuteLoad; // positive = rested, negative = fatigued
+
+  // Sleep average last 7 days
+  const sleepActs = acts7.filter(a => a.wellness?.sleepScore);
+  const sleepAvg = sleepActs.length
+    ? Math.round(sleepActs.reduce((s, a) => s + a.wellness.sleepScore, 0) / sleepActs.length)
+    : null;
+
+  // Load ratio
+  const loadRatio = chronicLoad > 0 ? acuteLoad / chronicLoad : 1;
+  const loadPct = Math.min(Math.round(loadRatio * 100), 200);
+
+  // Status
+  const loadColor = loadPct > 150 ? '#ef4444' : loadPct > 110 ? '#f97316' : loadPct > 80 ? '#22c55e' : '#20a4f3';
+  const loadLabel = loadPct > 150 ? 'OVERREACHING' : loadPct > 110 ? 'HIGH LOAD' : loadPct > 80 ? 'OPTIMAL' : loadPct > 40 ? 'BUILDING' : 'RECOVERY';
+
+  const sleepCol = !sleepAvg ? '#475569' : sleepAvg >= 80 ? '#22c55e' : sleepAvg >= 60 ? '#f59e0b' : '#ef4444';
+
+  // Suggestion
+  let suggestion = '';
+  if (loadPct > 150) suggestion = 'Почивай — твърде много натоварване тази седмица.';
+  else if (loadPct > 110 && sleepAvg && sleepAvg < 60) suggestion = 'Висок стрес + лош сън. Вземи лек ден.';
+  else if (loadPct < 50) suggestion = 'Седмицата е лека — можеш да натовариш повече.';
+  else if (sleepAvg && sleepAvg < 55) suggestion = 'Сънят е лош. Приоритизирай почивката.';
+  else if (loadPct >= 80 && loadPct <= 110) suggestion = 'Перфектно натоварване. Продължавай!';
+  else suggestion = 'Добра прогресия. Следи съня.';
+
+  return (
+    <div style={{ background: '#0f1420', border: '1px solid #1a2235', borderRadius: 14,
+      padding: '1.25rem 1.5rem', marginBottom: '1.25rem' }}>
+
+      <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.12em', marginBottom: '1rem' }}>
+        ⚡ TRAINING STATUS
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1rem' }}>
+
+        {/* Training Load */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em' }}>НАТОВАРВАНЕ</span>
+            <span style={{ fontSize: 18, color: loadColor, fontWeight: 800 }}>{loadPct}%</span>
+          </div>
+          {/* Gauge bar */}
+          <div style={{ height: 8, background: '#1a2235', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+            {/* Zone markers */}
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#334155' }} />
+            <div style={{ position: 'absolute', left: '75%', top: 0, bottom: 0, width: 1, background: '#334155' }} />
+            <div style={{ width: `${Math.min(loadPct / 2, 100)}%`, height: '100%',
+              background: `linear-gradient(to right, #20a4f3, ${loadColor})`,
+              borderRadius: 4, transition: 'width 0.5s ease' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <span style={{ fontSize: 8, color: '#334155' }}>ПОЧИВКА</span>
+            <span style={{ fontSize: 8, color: '#334155' }}>ОПТИМАЛ</span>
+            <span style={{ fontSize: 8, color: '#334155' }}>МАКС</span>
+          </div>
+          <div style={{ fontSize: 10, color: loadColor, fontWeight: 700, marginTop: 4, letterSpacing: '0.06em' }}>
+            {loadLabel}
+          </div>
+          <div style={{ fontSize: 9, color: '#334155', marginTop: 2 }}>
+            7д: {acuteLoad} · база: {chronicLoad}
+          </div>
+        </div>
+
+        {/* Sleep + Form */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {sleepAvg !== null && (
+            <div>
+              <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', marginBottom: 4 }}>СЪН (ср.)</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 26, color: sleepCol, fontWeight: 800, lineHeight: 1 }}>😴 {sleepAvg}</span>
+              </div>
+              <div style={{ height: 4, background: '#1a2235', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: `${sleepAvg}%`, height: '100%', background: sleepCol, borderRadius: 2 }} />
+              </div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.08em', marginBottom: 2 }}>ФОРМА</div>
+            <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1,
+              color: form > 10 ? '#22c55e' : form > -10 ? '#f59e0b' : '#ef4444' }}>
+              {form > 0 ? '+' : ''}{form}
+            </div>
+            <div style={{ fontSize: 9, color: '#475569', marginTop: 2 }}>
+              {form > 10 ? 'свеж · готов за интензивно' : form > -10 ? 'балансиран' : 'уморен · трябва почивка'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Suggestion */}
+      <div style={{ background: '#080c14', border: '1px solid #1a2235', borderRadius: 8,
+        padding: '0.6rem 1rem', fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>
+        💡 {suggestion}
       </div>
     </div>
   );
@@ -586,6 +704,8 @@ export default function Garmin() {
             style={{ ...styles.navArrow, opacity: isCurrentMonth ? 0.2 : 1 }}>›</button>
         </div>
       )}
+
+      <ScoreDashboard allActivities={allActivities} />
 
       {/* ── Stat Cards ───────────────────────────────────────────────────── */}
       <div style={styles.statGrid}>
