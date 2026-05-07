@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+// v2 — ScoreDashboard + inline sleep pill
 const BASE = 'https://melcho.onrender.com/api';
 
 // ── date / week helpers ────────────────────────────────────────────────────
