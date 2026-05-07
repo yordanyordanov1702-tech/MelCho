@@ -224,7 +224,13 @@ function WeekBarChart({ activities, monday }) {
 // ── Wellness Badge ─────────────────────────────────────────────────────────
 
 function WellnessBadge({ w }) {
-  if (!w || !w.sleepScore) return null;
+  if (!w || !w.sleepScore) return (
+    <div style={{ fontSize: 9, color: '#334155', padding: '2px 1.25rem', background: '#080c14',
+      borderLeft: '3px solid #1a2235', borderRight: '1px solid #1a2235', borderBottom: '1px solid #1a2235',
+      borderRadius: '0 0 6px 6px', marginTop: -2 }}>
+      sleep: {w ? JSON.stringify(w).slice(0,40) : 'null'}
+    </div>
+  );
 
   const sleepColor = w.sleepScore >= 80 ? '#22c55e' : w.sleepScore >= 60 ? '#f59e0b' : w.sleepScore >= 40 ? '#f97316' : '#ef4444';
   const sleepHrs   = w.sleepSeconds ? (w.sleepSeconds / 3600).toFixed(1) : null;
